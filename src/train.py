@@ -41,6 +41,10 @@ from preprocess import ALL_FEATURES, TARGET, build_pipeline, load_data
 
 warnings.filterwarnings("ignore")
 
+# MLflow 3.x requires a database backend — file store is deprecated
+MLFLOW_DB = Path(__file__).parent.parent / "mlflow.db"
+mlflow.set_tracking_uri(f"sqlite:///{MLFLOW_DB}")
+
 DATA_PATH = Path(__file__).parent.parent / "data" / "heart.csv"
 MODELS_DIR = Path(__file__).parent.parent / "models"
 PLOTS_DIR = Path(__file__).parent.parent / "plots"
