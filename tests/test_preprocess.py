@@ -1,30 +1,18 @@
 import sys
 from pathlib import Path
 import numpy as np
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from preprocess import (  # noqa: E402
-    load_data, get_preprocessor, build_pipeline,
+    get_preprocessor, build_pipeline,
     engineer_features, ALL_FEATURES, TARGET
 )
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "heart.csv"
 
 
-@pytest.fixture
-def df():
-    if not DATA_PATH.exists():
-        pytest.skip("Dataset not available — run data/download_data.py first")
-    return load_data(str(DATA_PATH))
-
-
-@pytest.fixture
-def raw_df():
-    import pandas as pd
-    if not DATA_PATH.exists():
-        pytest.skip("Dataset not available")
-    return pd.read_csv(str(DATA_PATH)).dropna()
+# Use session-scoped fixtures from conftest.py where possible
+# raw_df and df come from conftest
 
 
 def test_load_data_columns(df):
