@@ -17,7 +17,7 @@ spec:
       containers:
         - name: heart-risk-api
           image: heart-risk-api:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           resources:
