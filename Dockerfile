@@ -5,9 +5,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY models/ models/
-COPY api/ api/
+# Copy source, data, and training script
 COPY src/ src/
+COPY data/ data/
+COPY api/ api/
+
+# Train model inside the container so sklearn versions match at inference
+RUN mkdir -p models plots && python src/train.py --quick-run
 
 EXPOSE 8000
 
