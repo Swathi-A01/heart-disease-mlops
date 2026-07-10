@@ -13,12 +13,15 @@ from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
 import mlflow
+import numpy as np
+from sklearn.calibration import calibration_curve
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
     f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
@@ -28,6 +31,7 @@ from sklearn.model_selection import (
     GridSearchCV,
     RandomizedSearchCV,
     StratifiedKFold,
+    learning_curve,
     train_test_split,
 )
 from xgboost import XGBClassifier
@@ -86,6 +90,111 @@ def save_roc_curve(y_true, y_prob, run_name):
     return str(path)
 
 
+def save_precision_recall_curve(y_true, y_prob, run_name):
+    precision, recall, _ = precision_recall_curve(y_true, y_prob)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.plot(recall, precision, color="#e74c3c", lw=2)
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title(f"Precision-Recall Curve — {run_name}")
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+    path = PLOTS_DIR / f"pr_{run_name}.png"
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+    return str(path)
+
+
+def save_calibration_plot(y_true, y_prob, run_name):
+    fraction_of_positives, mean_predicted = calibration_curve(y_true, y_prob, n_bins=10)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.plot(mean_predicted, fraction_of_positives, "s-", label=run_name, color="#2ecc71")
+    ax.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
+    ax.set_xlabel("Mean Predicted Probability")
+    ax.set_ylabel("Fraction of Positives")
+    ax.set_title(f"Calibration Plot — {run_name}")
+    ax.legend(fontsize=9)
+    path = PLOTS_DIR / f"calibration_{run_name}.png"
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+    return str(path)
+
+
+def save_learning_curve(pipeline, X, y, run_name):
+    train_sizes, train_scores, val_scores = learning_curve(
+        pipeline, X, y, cv=5, scoring="roc_auc",
+        train_sizes=np.linspace(0.1, 1.0, 8), n_jobs=-1
+    )
+    train_mean = train_scores.mean(axis=1)
+    val_mean = val_scores.mean(axis=1)
+    train_std = train_scores.std(axis=1)
+    val_std = val_scores.std(axis=1)
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(train_sizes, train_mean, "o-", color="#3498db", label="Training AUC")
+    ax.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, alpha=0.15,
+                    color="#3498db")
+    ax.plot(train_sizes, val_mean, "o-", color="#e74c3c", label="Validation AUC")
+    ax.fill_between(train_sizes, val_mean - val_std, val_mean + val_std, alpha=0.15,
+                    color="#e74c3c")
+    ax.set_xlabel("Training Set Size")
+    ax.set_ylabel("ROC-AUC")
+    ax.set_title(f"Learning Curve — {run_name}")
+    ax.legend()
+    ax.set_ylim([0.5, 1.05])
+    path = PLOTS_DIR / f"learning_curve_{run_name}.png"
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+    return str(path)
+
+
+def save_feature_importance(pipeline, feature_names, run_name):
+    clf = pipeline.named_steps["classifier"]
+    pre = pipeline.named_steps["preprocessor"]
+
+    # Get transformed feature names from the ColumnTransformer
+    try:
+        ohe_features = pre.named_transformers_["cat"].get_feature_names_out(
+            ["cp", "restecg", "slope", "thal", "bp_category", "chol_risk"]
+        ).tolist()
+    except Exception:
+        ohe_features = []
+
+    num_features = ["age", "trestbps", "chol", "thalach", "oldpeak", "ca",
+                    "heart_rate_reserve", "age_thalach_ratio", "st_slope_interaction"]
+    bin_features = ["sex", "fbs", "exang"]
+    transformed_names = num_features + ohe_features + bin_features
+
+    if hasattr(clf, "coef_"):
+        importances = abs(clf.coef_[0])
+    elif hasattr(clf, "feature_importances_"):
+        importances = clf.feature_importances_
+    else:
+        return None
+
+    # Take top 15 most important
+    n = min(15, len(importances))
+    idx = importances.argsort()[-n:][::-1]
+    top_names = [transformed_names[i] if i < len(transformed_names) else f"f{i}"
+                 for i in idx]
+    top_vals = importances[idx]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.barh(range(n), top_vals[::-1], color="#9b59b6", edgecolor="white")
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(top_names[::-1], fontsize=9)
+    ax.set_xlabel("Importance")
+    ax.set_title(f"Feature Importance (Top {n}) — {run_name}")
+    plt.tight_layout()
+    path = PLOTS_DIR / f"feature_importance_{run_name}.png"
+    plt.savefig(path)
+    plt.close()
+    return str(path)
+
+
 def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test,
                    cv_score=None):
     mlflow.set_experiment("heart-disease-classification")
@@ -103,8 +212,13 @@ def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test,
 
         cm_path = save_confusion_matrix(y_test, y_pred, name)
         roc_path = save_roc_curve(y_test, y_prob, name)
-        mlflow.log_artifact(cm_path)
-        mlflow.log_artifact(roc_path)
+        pr_path = save_precision_recall_curve(y_test, y_prob, name)
+        cal_path = save_calibration_plot(y_test, y_prob, name)
+        fi_path = save_feature_importance(pipeline, ALL_FEATURES, name)
+        for path in [cm_path, roc_path, pr_path, cal_path]:
+            mlflow.log_artifact(path)
+        if fi_path:
+            mlflow.log_artifact(fi_path)
 
         # Save pipeline as joblib artifact (works for all model types including XGBoost)
         tmp_path = MODELS_DIR / f"_tmp_{name}.pkl"
@@ -112,7 +226,8 @@ def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test,
         mlflow.log_artifact(str(tmp_path), artifact_path="pipeline")
         tmp_path.unlink()
 
-        print(f"[{name}] CV-AUC={cv_score:.4f}  Test-AUC={metrics['roc_auc']:.4f}"
+        cv_str = f"{cv_score:.4f}" if cv_score is not None else "N/A"
+        print(f"[{name}] CV-AUC={cv_str}  Test-AUC={metrics['roc_auc']:.4f}"
               f"  Acc={metrics['accuracy']:.4f}")
         return metrics["roc_auc"], pipeline
 
@@ -211,6 +326,13 @@ def main(quick_run=False):
     save_path = MODELS_DIR / "pipeline.pkl"
     joblib.dump(best_pipeline, save_path)
     print(f"\nBest model: {best_name} (ROC-AUC={best_auc:.4f}) saved to {save_path}")
+
+    if not quick_run:
+        print("Generating learning curve for best model...")
+        X_all = df[ALL_FEATURES]
+        y_all = df[TARGET]
+        lc_path = save_learning_curve(best_pipeline, X_all, y_all, best_name.lower())
+        print(f"Learning curve saved to {lc_path}")
 
 
 if __name__ == "__main__":

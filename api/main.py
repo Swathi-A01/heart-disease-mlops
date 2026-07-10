@@ -1,21 +1,23 @@
 """
 FastAPI serving endpoint for Heart Disease risk prediction.
-Exposes /predict, /health, and /metrics (Prometheus).
+Exposes /predict, /health, /predict-batch, /model-info and /metrics (Prometheus).
 """
 import logging
 import sys
+import time
 from pathlib import Path
+from typing import List
 
 import joblib
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Counter, Histogram
 from pydantic import BaseModel, Field
-from prometheus_client import Counter
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from preprocess import CATEGORICAL_FEATURES  # noqa: E402
+from preprocess import CATEGORICAL_FEATURES, engineer_features  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,7 +27,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Heart Disease Risk API",
-    description="Predicts heart disease risk from patient health data.",
+    description=(
+        "Predicts heart disease risk from patient health data. "
+        "Uses a Random Forest classifier trained on the UCI Heart Disease (Cleveland) dataset. "
+        "Features include clinical measurements and derived biomarkers."
+    ),
     version="1.0.0",
 )
 
@@ -36,9 +42,26 @@ prediction_counter = Counter(
     "Total predictions by risk level",
     ["risk_level"],
 )
+prediction_latency = Histogram(
+    "heart_risk_prediction_duration_seconds",
+    "Time taken per prediction",
+)
+batch_size_histogram = Histogram(
+    "heart_risk_batch_size",
+    "Batch prediction sizes",
+    buckets=[1, 5, 10, 25, 50, 100],
+)
 
 MODEL_PATH = Path(__file__).parent.parent / "models" / "pipeline.pkl"
 pipeline = joblib.load(MODEL_PATH)
+
+# Track runtime stats in memory for /stats endpoint
+_stats = {"total_predictions": 0, "high_risk": 0, "low_risk": 0}
+
+RAW_FEATURES = [
+    "age", "sex", "cp", "trestbps", "chol", "fbs",
+    "restecg", "thalach", "exang", "oldpeak", "slope", "ca", "thal"
+]
 
 
 class PatientData(BaseModel):
@@ -50,7 +73,7 @@ class PatientData(BaseModel):
 
     age: float = Field(..., description="Age in years")
     sex: int = Field(..., description="1=male, 0=female")
-    cp: int = Field(..., description="Chest pain: 1=typical, 2=atypical, 3=non-anginal, 4=asympt")
+    cp: int = Field(..., description="Chest pain: 1=typical, 2=atypical, 3=non-anginal, 4=asymptomatic")  # noqa: E501
     trestbps: float = Field(..., description="Resting blood pressure (mmHg)")
     chol: float = Field(..., description="Serum cholesterol (mg/dl)")
     fbs: int = Field(..., description="Fasting blood sugar > 120 mg/dl (1=true)")
@@ -67,32 +90,99 @@ class PredictionResponse(BaseModel):
     prediction: int
     probability: float
     risk: str
+    heart_rate_reserve: float
+    age_thalach_ratio: float
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "model": "heart-disease-classifier"}
+class BatchPredictionResponse(BaseModel):
+    results: List[PredictionResponse]
+    count: int
+    high_risk_count: int
+    low_risk_count: int
 
 
-@app.post("/predict", response_model=PredictionResponse)
-def predict(data: PatientData):
+def _make_prediction(data: PatientData) -> PredictionResponse:
     df = pd.DataFrame([data.model_dump()])
-    # Cast categorical columns to float — OHE was fitted on float values from CSV
+    df = engineer_features(df)
     for col in CATEGORICAL_FEATURES:
         df[col] = df[col].astype(float)
 
+    start = time.time()
     prediction = int(pipeline.predict(df)[0])
     probability = float(pipeline.predict_proba(df)[0][1])
-    risk = "high" if prediction == 1 else "low"
+    prediction_latency.observe(time.time() - start)
 
+    risk = "high" if prediction == 1 else "low"
     prediction_counter.labels(risk_level=risk).inc()
+    _stats["total_predictions"] += 1
+    _stats[f"{risk}_risk"] += 1
+
     logger.info(
-        "PREDICT age=%.0f sex=%d cp=%d prob=%.4f result=%s",
+        "PREDICT age=%.0f sex=%d cp=%d prob=%.4f result=%s hr_reserve=%.1f",
         data.age, data.sex, data.cp, probability, risk,
+        float(df["heart_rate_reserve"].iloc[0]),
     )
 
     return PredictionResponse(
         prediction=prediction,
         probability=round(probability, 4),
         risk=risk,
+        heart_rate_reserve=round(float(df["heart_rate_reserve"].iloc[0]), 2),
+        age_thalach_ratio=round(float(df["age_thalach_ratio"].iloc[0]), 4),
+    )
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model": "heart-disease-classifier", "version": "1.0.0"}
+
+
+@app.get("/model-info")
+def model_info():
+    clf = pipeline.named_steps["classifier"]
+    return {
+        "model_type": type(clf).__name__,
+        "n_features_in": int(pipeline.named_steps["preprocessor"].n_features_in_),
+        "engineered_features": [
+            "heart_rate_reserve", "age_thalach_ratio",
+            "st_slope_interaction", "bp_category", "chol_risk"
+        ],
+        "training_dataset": "UCI Heart Disease — Cleveland (297 samples)",
+        "target": "Binary: 0=No Disease, 1=Disease Present",
+    }
+
+
+@app.get("/stats")
+def stats():
+    total = _stats["total_predictions"]
+    high = _stats["high_risk"]
+    low = _stats["low_risk"]
+    return {
+        "total_predictions": total,
+        "high_risk": high,
+        "low_risk": low,
+        "high_risk_rate": round(high / total, 4) if total > 0 else 0.0,
+    }
+
+
+@app.post("/predict", response_model=PredictionResponse)
+def predict(data: PatientData):
+    return _make_prediction(data)
+
+
+@app.post("/predict-batch", response_model=BatchPredictionResponse)
+def predict_batch(patients: List[PatientData]):
+    if len(patients) == 0:
+        raise HTTPException(status_code=400, detail="Batch must contain at least one patient.")
+    if len(patients) > 100:
+        raise HTTPException(status_code=400, detail="Batch size cannot exceed 100 patients.")
+
+    batch_size_histogram.observe(len(patients))
+    results = [_make_prediction(p) for p in patients]
+    high = sum(1 for r in results if r.risk == "high")
+    return BatchPredictionResponse(
+        results=results,
+        count=len(results),
+        high_risk_count=high,
+        low_risk_count=len(results) - high,
     )
