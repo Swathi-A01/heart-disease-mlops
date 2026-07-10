@@ -332,7 +332,10 @@ def main(quick_run=False):
         X_all = df[ALL_FEATURES]
         y_all = df[TARGET]
         lc_path = save_learning_curve(best_pipeline, X_all, y_all, best_name.lower())
-        print(f"Learning curve saved to {lc_path}")
+        mlflow.set_experiment("heart-disease-classification")
+        with mlflow.start_run(run_name=f"{best_name.lower()}_learning_curve"):
+            mlflow.log_artifact(lc_path)
+        print(f"Learning curve logged to MLflow: {lc_path}")
 
 
 if __name__ == "__main__":
