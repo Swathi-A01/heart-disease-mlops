@@ -12,6 +12,7 @@ from docx.oxml import OxmlElement
 import copy
 
 PLOTS = Path("plots")
+SHOTS = Path("screenshots")
 REPO_URL = "https://github.com/Swathi-A01/heart-disease-mlops"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -559,6 +560,16 @@ add_table(doc,
     ]
 )
 
+add_heading(doc, "8.3 CI/CD Evidence", level=2)
+add_image(doc, SHOTS / "12_github_actions_list.png", width=6.0,
+          caption="Screenshot: GitHub Actions — all workflow runs (latest: green)")
+add_image(doc, SHOTS / "13_github_actions_run_detail.png", width=6.0,
+          caption="Screenshot: GitHub Actions — run detail showing all steps passed")
+add_image(doc, SHOTS / "14_github_actions_job_steps.png", width=6.0,
+          caption="Screenshot: GitHub Actions — individual step results")
+add_image(doc, SHOTS / "15_github_repo_home.png", width=6.0,
+          caption="Screenshot: GitHub repository — heart-disease-mlops")
+
 doc.add_page_break()
 
 # ── 9. CONTAINERISATION ───────────────────────────────────────────────────────
@@ -610,6 +621,22 @@ add_code(doc, '       "restecg":2,"thalach":108,"exang":1,"oldpeak":1.5,')
 add_code(doc, '       "slope":2,"ca":3,"thal":7}\'')
 add_code(doc, '# {"prediction":1,"probability":0.9982,"risk":"high","heart_rate_reserve":45.0,"age_thalach_ratio":1.6119}')
 
+add_heading(doc, "9.4 API in Action", level=2)
+add_image(doc, SHOTS / "01_swagger_ui.png", width=6.0,
+          caption="Screenshot: FastAPI Swagger UI — auto-generated interactive documentation")
+add_image(doc, SHOTS / "02_swagger_predict_open.png", width=6.0,
+          caption="Screenshot: /predict endpoint expanded in Swagger UI")
+add_image(doc, SHOTS / "20_api_predict_high_risk.png", width=6.0,
+          caption="Screenshot: /predict response — high risk patient (probability: 0.9982)")
+add_image(doc, SHOTS / "21_api_predict_low_risk.png", width=6.0,
+          caption="Screenshot: /predict response — low risk patient (probability: 0.0353)")
+add_image(doc, SHOTS / "22_api_predict_batch.png", width=6.0,
+          caption="Screenshot: /predict-batch response — 3 patients with aggregate summary")
+add_image(doc, SHOTS / "04_api_model_info.png", width=6.0,
+          caption="Screenshot: /model-info endpoint — model metadata")
+add_image(doc, SHOTS / "05_api_stats.png", width=6.0,
+          caption="Screenshot: /stats endpoint — live prediction counters")
+
 doc.add_page_break()
 
 # ── 10. KUBERNETES ────────────────────────────────────────────────────────────
@@ -654,6 +681,10 @@ add_code(doc, "# heart-risk-service   LoadBalancer   10.96.92.118   172.18.0.5  
 add_code(doc, "curl http://localhost/predict -X POST -d '{...}'")
 add_code(doc, '# {"prediction":1,"probability":0.9982,"risk":"high",...}')
 
+add_heading(doc, "10.4 Deployment Evidence", level=2)
+add_image(doc, SHOTS / "23_kubernetes_deployment.png", width=6.0,
+          caption="Screenshot: kubectl output — 2 pods Running, LoadBalancer service exposed, API responding")
+
 doc.add_page_break()
 
 # ── 11. MONITORING ────────────────────────────────────────────────────────────
@@ -696,6 +727,24 @@ add_body(doc, (
     "data source and the provided grafana-dashboard.json imports a dashboard with four panels: "
     "prediction request rate, total predictions by risk level, latency p50/p95, and API success rate."
 ))
+
+add_heading(doc, "11.4 Monitoring Evidence", level=2)
+add_image(doc, SHOTS / "16_prometheus_targets.png", width=6.0,
+          caption="Screenshot: Prometheus targets page — heart-risk-api showing status UP")
+add_image(doc, SHOTS / "17_prometheus_query.png", width=6.0,
+          caption="Screenshot: Prometheus query — heart_risk_predictions_total by risk level")
+add_image(doc, SHOTS / "18_grafana_dashboard.png", width=6.0,
+          caption="Screenshot: Grafana dashboard — 4 panels showing request rate, predictions, latency")
+add_image(doc, SHOTS / "19_grafana_dashboard_wide.png", width=6.0,
+          caption="Screenshot: Grafana dashboard (wide view) — Heart Disease Risk API monitoring")
+add_image(doc, SHOTS / "06_api_metrics.png", width=6.0,
+          caption="Screenshot: /metrics endpoint — Prometheus metrics exposed by the API")
+
+add_heading(doc, "11.5 MLflow Experiment Tracking Evidence", level=2)
+add_image(doc, SHOTS / "07_mlflow_home.png", width=6.0,
+          caption="Screenshot: MLflow UI home — heart-disease-classification experiment")
+add_image(doc, SHOTS / "08_mlflow_runs_list.png", width=6.0,
+          caption="Screenshot: MLflow runs — 3 models with ROC-AUC metrics visible")
 
 doc.add_page_break()
 
