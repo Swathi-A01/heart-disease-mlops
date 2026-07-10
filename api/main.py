@@ -38,21 +38,30 @@ prediction_counter = Counter(
 MODEL_PATH = Path(__file__).parent.parent / "models" / "pipeline.pkl"
 pipeline = joblib.load(MODEL_PATH)
 
+# Categorical features were fitted on float values from CSV — must cast at inference
+CATEGORICAL_FEATURES = ["cp", "restecg", "slope", "thal"]
+
 
 class PatientData(BaseModel):
-    age: float = Field(..., example=55, description="Age in years")
-    sex: int = Field(..., example=1, description="1=male, 0=female")
-    cp: int = Field(..., example=0, description="Chest pain type (0-3)")
-    trestbps: float = Field(..., example=130, description="Resting blood pressure")
-    chol: float = Field(..., example=250, description="Serum cholesterol mg/dl")
-    fbs: int = Field(..., example=0, description="Fasting blood sugar > 120 mg/dl (1=true)")
-    restecg: int = Field(..., example=0, description="Resting ECG results (0-2)")
-    thalach: float = Field(..., example=150, description="Max heart rate achieved")
-    exang: int = Field(..., example=0, description="Exercise induced angina (1=yes)")
-    oldpeak: float = Field(..., example=1.5, description="ST depression induced by exercise")
-    slope: int = Field(..., example=1, description="Slope of peak exercise ST segment (0-2)")
-    ca: float = Field(..., example=0, description="Number of major vessels (0-3)")
-    thal: float = Field(..., example=2, description="Thal: 1=normal, 2=fixed defect, 3=reversable defect")
+    model_config = {"json_schema_extra": {"example": {
+        "age": 55, "sex": 1, "cp": 1, "trestbps": 130, "chol": 250,
+        "fbs": 0, "restecg": 0, "thalach": 150, "exang": 0,
+        "oldpeak": 1.5, "slope": 1, "ca": 0, "thal": 3
+    }}}
+
+    age: float = Field(..., description="Age in years")
+    sex: int = Field(..., description="1=male, 0=female")
+    cp: int = Field(..., description="Chest pain type: 1=typical angina, 2=atypical, 3=non-anginal, 4=asymptomatic")
+    trestbps: float = Field(..., description="Resting blood pressure (mmHg)")
+    chol: float = Field(..., description="Serum cholesterol (mg/dl)")
+    fbs: int = Field(..., description="Fasting blood sugar > 120 mg/dl (1=true)")
+    restecg: int = Field(..., description="Resting ECG results: 0=normal, 1=ST-T abnormality, 2=LV hypertrophy")
+    thalach: float = Field(..., description="Max heart rate achieved")
+    exang: int = Field(..., description="Exercise induced angina (1=yes)")
+    oldpeak: float = Field(..., description="ST depression induced by exercise")
+    slope: int = Field(..., description="Slope of peak exercise ST segment: 1=upsloping, 2=flat, 3=downsloping")
+    ca: float = Field(..., description="Number of major vessels coloured by fluoroscopy (0-3)")
+    thal: float = Field(..., description="Thal: 3=normal, 6=fixed defect, 7=reversable defect")
 
 
 class PredictionResponse(BaseModel):
@@ -69,6 +78,10 @@ def health():
 @app.post("/predict", response_model=PredictionResponse)
 def predict(data: PatientData):
     df = pd.DataFrame([data.model_dump()])
+    # Cast categorical columns to float — OHE was fitted on float values from CSV
+    for col in CATEGORICAL_FEATURES:
+        df[col] = df[col].astype(float)
+
     prediction = int(pipeline.predict(df)[0])
     probability = float(pipeline.predict_proba(df)[0][1])
     risk = "high" if prediction == 1 else "low"

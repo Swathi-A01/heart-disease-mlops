@@ -17,9 +17,9 @@ def client():
 
 
 SAMPLE_PATIENT = {
-    "age": 55, "sex": 1, "cp": 0, "trestbps": 130,
+    "age": 55, "sex": 1, "cp": 1, "trestbps": 130,
     "chol": 250, "fbs": 0, "restecg": 0, "thalach": 150,
-    "exang": 0, "oldpeak": 1.5, "slope": 1, "ca": 0, "thal": 2,
+    "exang": 0, "oldpeak": 1.5, "slope": 1, "ca": 0, "thal": 3,
 }
 
 
