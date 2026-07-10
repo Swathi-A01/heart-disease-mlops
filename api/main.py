@@ -51,15 +51,15 @@ class PatientData(BaseModel):
 
     age: float = Field(..., description="Age in years")
     sex: int = Field(..., description="1=male, 0=female")
-    cp: int = Field(..., description="Chest pain type: 1=typical angina, 2=atypical, 3=non-anginal, 4=asymptomatic")
+    cp: int = Field(..., description="Chest pain: 1=typical, 2=atypical, 3=non-anginal, 4=asympt")
     trestbps: float = Field(..., description="Resting blood pressure (mmHg)")
     chol: float = Field(..., description="Serum cholesterol (mg/dl)")
     fbs: int = Field(..., description="Fasting blood sugar > 120 mg/dl (1=true)")
-    restecg: int = Field(..., description="Resting ECG results: 0=normal, 1=ST-T abnormality, 2=LV hypertrophy")
+    restecg: int = Field(..., description="Resting ECG: 0=normal, 1=ST-T wave, 2=LV hypertrophy")
     thalach: float = Field(..., description="Max heart rate achieved")
     exang: int = Field(..., description="Exercise induced angina (1=yes)")
     oldpeak: float = Field(..., description="ST depression induced by exercise")
-    slope: int = Field(..., description="Slope of peak exercise ST segment: 1=upsloping, 2=flat, 3=downsloping")
+    slope: int = Field(..., description="Slope of peak ST: 1=upsloping, 2=flat, 3=downsloping")
     ca: float = Field(..., description="Number of major vessels coloured by fluoroscopy (0-3)")
     thal: float = Field(..., description="Thal: 3=normal, 6=fixed defect, 7=reversable defect")
 

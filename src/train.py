@@ -7,16 +7,12 @@ Usage:
     python src/train.py --quick-run   # fast smoke test for CI
 """
 import argparse
-import os
 import warnings
 from pathlib import Path
 
 import joblib
 import matplotlib.pyplot as plt
 import mlflow
-import numpy as np
-import pandas as pd
-import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -32,7 +28,6 @@ from sklearn.model_selection import (
     GridSearchCV,
     RandomizedSearchCV,
     StratifiedKFold,
-    cross_val_score,
     train_test_split,
 )
 from xgboost import XGBClassifier
@@ -145,7 +140,9 @@ def main(quick_run=False):
         lr_best = gs.best_estimator_
         lr_params = {"model": "LogisticRegression", **gs.best_params_}
 
-    auc, _ = run_experiment("logistic_regression", lr_best, lr_params, X_train, y_train, X_test, y_test)
+    auc, _ = run_experiment(
+        "logistic_regression", lr_best, lr_params, X_train, y_train, X_test, y_test
+    )
     results.append(("LogisticRegression", auc, lr_best))
 
     # --- Random Forest ---
