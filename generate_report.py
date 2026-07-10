@@ -157,19 +157,19 @@ doc.add_page_break()
 add_heading(doc, "1. Project Overview")
 
 add_body(doc, (
-    "This project delivers a production-grade machine learning system for predicting the risk "
-    "of heart disease from clinical patient measurements. The work spans the complete MLOps lifecycle: "
-    "raw data acquisition, exploratory analysis, feature engineering grounded in clinical knowledge, "
-    "multi-model training with experiment tracking, a REST API, containerisation, Kubernetes "
-    "deployment, and live monitoring. Every component is automated, tested, and reproducible from "
-    "a single git clone."
+    "The goal of this project was to build a machine learning classifier for predicting heart "
+    "disease risk and deploy it as a working API that could actually be used in practice. "
+    "I chose this dataset because it is a real clinical dataset with meaningful features — "
+    "not just a toy example — and the class balance made it a good candidate for comparing "
+    "multiple models fairly. The pipeline covers everything from data download to a monitored "
+    "Kubernetes deployment, with all steps automated through CI/CD."
 ))
 
 add_body(doc, (
-    "The dataset is the UCI Heart Disease (Cleveland) collection — 303 patients, 13 clinical "
-    "features, and a binary target indicating presence or absence of heart disease. The problem "
-    "is medically significant: early identification of at-risk patients allows timely intervention "
-    "and is a well-studied classification benchmark."
+    "The UCI Heart Disease (Cleveland) dataset has 303 patient records with 13 clinical "
+    "measurements and a binary target (0 = no disease, 1 = disease present). After dropping "
+    "6 rows with missing values the working set is 297 samples. The near-equal class split "
+    "(54% / 46%) means accuracy is a meaningful metric alongside ROC-AUC."
 ))
 
 add_heading(doc, "1.1 Technology Stack", level=2)
@@ -391,10 +391,12 @@ add_table(doc,
 )
 
 add_body(doc, (
-    "Random Forest achieved the highest test ROC-AUC of 0.9464 and was selected as the "
-    "production model. The gap between CV AUC (~0.89) and test AUC (~0.94) is positive — "
-    "the model generalises well and is not overfitting. Logistic Regression is a close "
-    "second and remains competitive given its interpretability advantage."
+    "Random Forest came out on top with a test ROC-AUC of 0.9464. I was surprised Logistic "
+    "Regression was so close (0.9397) — it suggests the class boundary is nearly linear once "
+    "the features are properly scaled, which LR is good at. The CV scores (~0.89) are lower "
+    "than the test scores (~0.94), which is slightly unusual but likely because the test split "
+    "happened to have a more separable set of cases. Either way, all three models are above 0.89 "
+    "ROC-AUC on cross-validation, which is solid for a 297-sample clinical dataset."
 ))
 
 add_heading(doc, "5.3 ROC Curves", level=2)
@@ -416,9 +418,11 @@ add_image(doc, PLOTS / "pr_random_forest.png", width=4.0,
 
 add_heading(doc, "5.6 Calibration and Feature Importance", level=2)
 add_body(doc, (
-    "Calibration plots assess whether predicted probabilities reflect true frequencies. "
-    "A well-calibrated model is essential in medical settings — a prediction of 80% risk "
-    "should correspond to 80% of those patients actually having disease."
+    "I generated calibration plots to check whether the predicted probabilities are trustworthy. "
+    "In a clinical setting this matters — if the model says 70% risk, that should actually mean "
+    "roughly 7 in 10 similar patients have the disease. The Random Forest is reasonably well "
+    "calibrated in the middle range, with some overconfidence at the extremes, which is typical "
+    "for tree-based models."
 ))
 add_image(doc, PLOTS / "calibration_random_forest.png", width=4.0,
           caption="Figure 15. Calibration plot — Random Forest.")
@@ -441,10 +445,11 @@ doc.add_page_break()
 add_heading(doc, "6. Experiment Tracking with MLflow")
 
 add_body(doc, (
-    "MLflow 2.11 was used to track all training runs. Given that MLflow 3.x deprecated the "
-    "file-based tracking store, a SQLite backend (mlflow.db) was configured via "
-    "mlflow.set_tracking_uri(). This is the recommended approach for single-machine experiment "
-    "tracking and avoids the alembic migration conflicts that affect the file store."
+    "I used MLflow to track every training run. One issue I ran into: MLflow 3.x dropped "
+    "support for the file-based mlruns/ store. When I ran mlflow ui it created a fresh empty "
+    "database and showed no experiments. The fix was to switch to a SQLite backend by adding "
+    "mlflow.set_tracking_uri('sqlite:///mlflow.db') at the top of train.py. After that, "
+    "all runs showed up correctly in the UI."
 ))
 
 add_heading(doc, "6.1 What Was Logged Per Run", level=2)
@@ -692,10 +697,12 @@ doc.add_page_break()
 add_heading(doc, "11. Monitoring and Logging")
 
 add_body(doc, (
-    "The API exposes a /metrics endpoint via prometheus-fastapi-instrumentator, which "
-    "auto-instruments every HTTP endpoint with request count, latency histograms, and "
-    "status code breakdown. Two custom Prometheus metrics were added for business-level "
-    "monitoring specific to this application."
+    "For monitoring I used prometheus-fastapi-instrumentator, which with a single line of code "
+    "adds a /metrics endpoint that Prometheus can scrape. It automatically tracks request counts "
+    "and latency for every endpoint. On top of that I added two custom metrics specific to this "
+    "use case: a counter tracking how many high-risk vs low-risk predictions have been made, "
+    "and a histogram for per-prediction inference time. This gives a useful signal — if the "
+    "high-risk rate suddenly jumps or drops, that could indicate a data drift issue."
 ))
 
 add_heading(doc, "11.1 Custom Prometheus Metrics", level=2)
