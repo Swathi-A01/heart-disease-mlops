@@ -20,7 +20,7 @@ env/
 # MLflow — file store deprecated in MLflow 3.x, using sqlite:///mlflow.db instead
 mlruns/
 mlartifacts/
-# mlflow.db is tracked so runs are visible without re-training
+mlflow.db
 
 # Models (tracked via MLflow, not git)
 models/*.pkl

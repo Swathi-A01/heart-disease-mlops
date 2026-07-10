@@ -37,7 +37,9 @@ jobs:
         run: pytest tests/test_preprocess.py -v --tb=short
 
       - name: Train model (quick smoke test)
-        run: python src/train.py --quick-run
+        run: |
+          mkdir -p models plots
+          python src/train.py --quick-run
 
       - name: Run API tests
         run: pytest tests/test_api.py -v --tb=short
