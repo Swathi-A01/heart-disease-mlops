@@ -14,7 +14,6 @@ from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
 import mlflow
-import mlflow.sklearn
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -105,7 +104,11 @@ def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test):
         mlflow.log_artifact(cm_path)
         mlflow.log_artifact(roc_path)
 
-        mlflow.sklearn.log_model(pipeline, "model")
+        # Save pipeline as joblib artifact (works for all model types including XGBoost)
+        tmp_path = MODELS_DIR / f"_tmp_{name}.pkl"
+        joblib.dump(pipeline, tmp_path)
+        mlflow.log_artifact(str(tmp_path), artifact_path="pipeline")
+        tmp_path.unlink()
 
         print(f"[{name}] ROC-AUC={metrics['roc_auc']:.4f}  Acc={metrics['accuracy']:.4f}")
         return metrics["roc_auc"], pipeline
