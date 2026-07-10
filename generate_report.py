@@ -758,59 +758,8 @@ add_body(doc, (
     "transformation used by both the training path and the serving path."
 ))
 
-# ASCII architecture diagram as code block
-arch = """
-┌─────────────────────────────────────────────────────────────────┐
-│                        DATA LAYER                                │
-│  UCI CSV ──► download_data.py ──► data/heart.csv                │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                   FEATURE ENGINEERING                            │
-│  preprocess.py                                                   │
-│  ColumnTransformer: StandardScaler + OneHotEncoder + passthrough │
-│  engineer_features(): heart_rate_reserve, bp_category, etc.      │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-          ┌────────────────┴────────────────┐
-          │                                 │
-┌─────────▼─────────┐             ┌─────────▼─────────┐
-│   TRAINING PATH   │             │   SERVING PATH    │
-│  src/train.py     │             │  api/main.py      │
-│  LR + RF + XGB    │             │  FastAPI          │
-│  GridSearch / RS  │             │  /predict         │
-│  MLflow logging   │             │  /predict-batch   │
-│  pipeline.pkl ◄───┘             │  /model-info      │
-└─────────┬─────────┘             │  /stats           │
-          │ mlflow.db             └─────────┬─────────┘
-┌─────────▼─────────┐                       │
-│   MLFLOW UI       │             ┌─────────▼─────────┐
-│  localhost:5000   │             │   DOCKER IMAGE    │
-└───────────────────┘             │  python:3.11-slim │
-                                  │  trains at build  │
-                                  └─────────┬─────────┘
-                                            │
-                                  ┌─────────▼─────────┐
-                                  │   KUBERNETES       │
-                                  │  2 replicas        │
-                                  │  LoadBalancer :80  │
-                                  │  health probes     │
-                                  └─────────┬─────────┘
-                                            │
-                        ┌───────────────────┴───────────────────┐
-                        │                                       │
-              ┌─────────▼─────────┐                 ┌──────────▼─────────┐
-              │   PROMETHEUS      │                 │    GRAFANA         │
-              │  scrapes /metrics │                 │  dashboard         │
-              │  localhost:9090   │                 │  localhost:3000    │
-              └───────────────────┘                 └────────────────────┘
-
-              ┌──────────────────────────────────────────────────────────┐
-              │                   CI/CD (GitHub Actions)                  │
-              │  push ► lint ► download ► test ► train ► test API ► done │
-              └──────────────────────────────────────────────────────────┘
-"""
-add_code(doc, arch)
+add_image(doc, PLOTS / "architecture_diagram.png", width=6.5,
+          caption="Figure 18. End-to-end MLOps system architecture.")
 
 doc.add_page_break()
 
