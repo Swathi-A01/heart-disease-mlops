@@ -1,0 +1,13 @@
+venv/
+.venv/
+mlruns/
+mlflow.db
+plots/
+screenshots/
+notebooks/
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+*.egg-info/
+.DS_Store

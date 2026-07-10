@@ -86,7 +86,8 @@ def save_roc_curve(y_true, y_prob, run_name):
     return str(path)
 
 
-def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test):
+def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test,
+                   cv_score=None):
     mlflow.set_experiment("heart-disease-classification")
     with mlflow.start_run(run_name=name):
         pipeline.fit(X_train, y_train)
@@ -94,6 +95,8 @@ def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test):
         y_prob = pipeline.predict_proba(X_test)[:, 1]
 
         metrics = compute_metrics(y_test, y_pred, y_prob)
+        if cv_score is not None:
+            metrics["cv_roc_auc"] = cv_score
 
         mlflow.log_params(params)
         mlflow.log_metrics(metrics)
@@ -109,7 +112,8 @@ def run_experiment(name, pipeline, params, X_train, y_train, X_test, y_test):
         mlflow.log_artifact(str(tmp_path), artifact_path="pipeline")
         tmp_path.unlink()
 
-        print(f"[{name}] ROC-AUC={metrics['roc_auc']:.4f}  Acc={metrics['accuracy']:.4f}")
+        print(f"[{name}] CV-AUC={cv_score:.4f}  Test-AUC={metrics['roc_auc']:.4f}"
+              f"  Acc={metrics['accuracy']:.4f}")
         return metrics["roc_auc"], pipeline
 
 
@@ -129,7 +133,8 @@ def main(quick_run=False):
     lr_pipeline = build_pipeline(LogisticRegression(max_iter=1000, random_state=42))
     if quick_run:
         lr_best = lr_pipeline
-        lr_params = {"model": "LogisticRegression", "C": 1.0}
+        lr_params = {"model": "LogisticRegression", "C": 1.0, "cv_folds": 0}
+        lr_cv_score = None
     else:
         gs = GridSearchCV(
             lr_pipeline,
@@ -138,10 +143,12 @@ def main(quick_run=False):
         )
         gs.fit(X_train, y_train)
         lr_best = gs.best_estimator_
-        lr_params = {"model": "LogisticRegression", **gs.best_params_}
+        lr_cv_score = gs.best_score_
+        lr_params = {"model": "LogisticRegression", "cv_folds": 5, **gs.best_params_}
 
     auc, _ = run_experiment(
-        "logistic_regression", lr_best, lr_params, X_train, y_train, X_test, y_test
+        "logistic_regression", lr_best, lr_params, X_train, y_train, X_test, y_test,
+        cv_score=lr_cv_score
     )
     results.append(("LogisticRegression", auc, lr_best))
 
@@ -149,7 +156,8 @@ def main(quick_run=False):
     rf_pipeline = build_pipeline(RandomForestClassifier(random_state=42))
     if quick_run:
         rf_best = rf_pipeline
-        rf_params = {"model": "RandomForest", "n_estimators": 100}
+        rf_params = {"model": "RandomForest", "n_estimators": 100, "cv_folds": 0}
+        rf_cv_score = None
     else:
         rs = RandomizedSearchCV(
             rf_pipeline,
@@ -162,16 +170,21 @@ def main(quick_run=False):
         )
         rs.fit(X_train, y_train)
         rf_best = rs.best_estimator_
-        rf_params = {"model": "RandomForest", **rs.best_params_}
+        rf_cv_score = rs.best_score_
+        rf_params = {"model": "RandomForest", "cv_folds": 5, **rs.best_params_}
 
-    auc, _ = run_experiment("random_forest", rf_best, rf_params, X_train, y_train, X_test, y_test)
+    auc, _ = run_experiment(
+        "random_forest", rf_best, rf_params, X_train, y_train, X_test, y_test,
+        cv_score=rf_cv_score
+    )
     results.append(("RandomForest", auc, rf_best))
 
     # --- XGBoost ---
     xgb_pipeline = build_pipeline(XGBClassifier(eval_metric="logloss", random_state=42))
     if quick_run:
         xgb_best = xgb_pipeline
-        xgb_params = {"model": "XGBoost", "n_estimators": 100}
+        xgb_params = {"model": "XGBoost", "n_estimators": 100, "cv_folds": 0}
+        xgb_cv_score = None
     else:
         rs_xgb = RandomizedSearchCV(
             xgb_pipeline,
@@ -184,9 +197,13 @@ def main(quick_run=False):
         )
         rs_xgb.fit(X_train, y_train)
         xgb_best = rs_xgb.best_estimator_
-        xgb_params = {"model": "XGBoost", **rs_xgb.best_params_}
+        xgb_cv_score = rs_xgb.best_score_
+        xgb_params = {"model": "XGBoost", "cv_folds": 5, **rs_xgb.best_params_}
 
-    auc, _ = run_experiment("xgboost", xgb_best, xgb_params, X_train, y_train, X_test, y_test)
+    auc, _ = run_experiment(
+        "xgboost", xgb_best, xgb_params, X_train, y_train, X_test, y_test,
+        cv_score=xgb_cv_score
+    )
     results.append(("XGBoost", auc, xgb_best))
 
     # --- Save best model ---

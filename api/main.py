@@ -15,6 +15,8 @@ from prometheus_client import Counter
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from preprocess import CATEGORICAL_FEATURES  # noqa: E402
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -37,9 +39,6 @@ prediction_counter = Counter(
 
 MODEL_PATH = Path(__file__).parent.parent / "models" / "pipeline.pkl"
 pipeline = joblib.load(MODEL_PATH)
-
-# Categorical features were fitted on float values from CSV — must cast at inference
-CATEGORICAL_FEATURES = ["cp", "restecg", "slope", "thal"]
 
 
 class PatientData(BaseModel):
