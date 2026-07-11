@@ -1058,24 +1058,27 @@ code(doc, '# Response: {"prediction":1,"probability":0.9982,"risk":"high",...}')
 
 h(doc, "10.4 Cloud Deployment Evidence", level=2)
 
-# Use screenshots if available, otherwise show placeholder text
-render_swagger   = SHOTS / "render_swagger_ui.png"
-render_health    = SHOTS / "render_health.png"
-render_predict_h = SHOTS / "render_predict_high.png"
-render_predict_l = SHOTS / "render_predict_low.png"
-
-if render_swagger.exists():
-    img(doc, render_swagger, width=6.0,
-        caption=f"Screenshot. Live Swagger UI at {RENDER_URL}/docs")
-if render_health.exists():
-    img(doc, render_health, width=6.0,
-        caption="Screenshot. GET /health — live cloud deployment response.")
-if render_predict_h.exists():
-    img(doc, render_predict_h, width=6.0,
-        caption="Screenshot. POST /predict — high risk patient via public Render URL.")
-if render_predict_l.exists():
-    img(doc, render_predict_l, width=6.0,
-        caption="Screenshot. POST /predict — low risk patient via public Render URL.")
+# Render evidence screenshots — all taken from the live public URL
+for path, caption in [
+    (SHOTS / "render_deployment_card.png",
+     f"Screenshot 17. Live Render deployment — {RENDER_URL}"),
+    (SHOTS / "render_swagger_ui.png",
+     f"Screenshot 18. Swagger UI live at {RENDER_URL}/docs"),
+    (SHOTS / "render_swagger_predict.png",
+     "Screenshot 19. /predict endpoint expanded in live Swagger UI."),
+    (SHOTS / "render_health.png",
+     "Screenshot 20. GET /health — live API response from Render cloud."),
+    (SHOTS / "render_model_info.png",
+     "Screenshot 21. GET /model-info — model metadata from live API."),
+    (SHOTS / "render_stats.png",
+     "Screenshot 22. GET /stats — live prediction counters."),
+    (SHOTS / "render_predict_high.png",
+     "Screenshot 23. POST /predict — high risk patient (probability 0.9982) via live URL."),
+    (SHOTS / "render_predict_low.png",
+     "Screenshot 24. POST /predict — low risk patient via live public URL."),
+]:
+    if path.exists():
+        img(doc, path, width=6.0, caption=caption)
 
 doc.add_page_break()
 
