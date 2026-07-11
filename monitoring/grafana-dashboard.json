@@ -4,100 +4,389 @@
   "annotations": {"list": []},
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
   "panels": [
+
     {
       "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "reqps"},
-        "overrides": []
-      },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
-      "id": 1,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
-      "targets": [
-        {
-          "expr": "rate(http_requests_total{handler=\"/predict\"}[1m])",
-          "legendFormat": "Requests/sec",
-          "refId": "A"
-        }
-      ],
-      "title": "Prediction Request Rate (req/sec)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
-        "overrides": []
-      },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
-      "id": 2,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
-      "targets": [
-        {
-          "expr": "heart_risk_predictions_total",
-          "legendFormat": "{{risk_level}} risk",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Predictions by Risk Level",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "s"},
-        "overrides": []
-      },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
-      "id": 3,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m]))",
-          "legendFormat": "p95 latency",
-          "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m]))",
-          "legendFormat": "p50 latency",
-          "refId": "B"
-        }
-      ],
-      "title": "Prediction Latency (p50 / p95)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {
-        "defaults": {"color": {"mode": "thresholds"}, "unit": "short",
+        "defaults": {
+          "color": {"mode": "thresholds"},
           "thresholds": {"mode": "absolute", "steps": [
             {"color": "green", "value": null},
-            {"color": "red", "value": 0.1}
-          ]}
+            {"color": "yellow", "value": 0.5},
+            {"color": "red", "value": 0.8}
+          ]},
+          "unit": "percentunit",
+          "mappings": []
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
-      "id": 4,
-      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "auto", "text": {}, "textMode": "auto", "colorMode": "background"},
-      "targets": [
-        {
-          "expr": "rate(http_requests_total{handler=\"/predict\",status=\"2xx\"}[5m])",
-          "legendFormat": "Success rate",
-          "refId": "A"
-        }
-      ],
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "targets": [{"expr": "rate(http_requests_total{handler=\"/predict\",status=\"2xx\"}[5m]) / rate(http_requests_total{handler=\"/predict\"}[5m])", "legendFormat": "Success Rate", "refId": "A"}],
       "title": "API Success Rate",
       "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "orange", "value": 50},
+            {"color": "red", "value": 100}
+          ]},
+          "unit": "short",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "id": 2,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center"
+      },
+      "targets": [{"expr": "sum(heart_risk_predictions_total)", "legendFormat": "Total Predictions", "refId": "A"}],
+      "title": "Total Predictions",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 0.4},
+            {"color": "red", "value": 0.6}
+          ]},
+          "unit": "percentunit",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "id": 3,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "targets": [{"expr": "heart_risk_predictions_total{risk_level=\"high\"} / sum(heart_risk_predictions_total)", "legendFormat": "High Risk Rate", "refId": "A"}],
+      "title": "High Risk Rate",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 0.05},
+            {"color": "red", "value": 0.2}
+          ]},
+          "unit": "s",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+      "id": 4,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center"
+      },
+      "targets": [{"expr": "histogram_quantile(0.95, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p95 Latency", "refId": "A"}],
+      "title": "p95 Inference Latency",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "red", "value": 20}
+          ]},
+          "unit": "reqps",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+      "id": 5,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center"
+      },
+      "targets": [{"expr": "sum(rate(http_requests_total[1m]))", "legendFormat": "Req/sec", "refId": "A"}],
+      "title": "Request Rate",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 0.01},
+            {"color": "red", "value": 0.05}
+          ]},
+          "unit": "percentunit",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+      "id": 6,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "targets": [{"expr": "rate(http_requests_total{status=~\"4xx|5xx\"}[5m]) / rate(http_requests_total[5m])", "legendFormat": "Error Rate", "refId": "A"}],
+      "title": "Error Rate",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity"},
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "id": 7,
+      "options": {
+        "legend": {"calcs": ["mean","max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {"expr": "rate(http_requests_total{handler=\"/predict\"}[1m])", "legendFormat": "POST /predict", "refId": "A"},
+        {"expr": "rate(http_requests_total{handler=\"/predict-batch\"}[1m])", "legendFormat": "POST /predict-batch", "refId": "B"},
+        {"expr": "rate(http_requests_total{handler=\"/health\"}[1m])", "legendFormat": "GET /health", "refId": "C"}
+      ],
+      "title": "Request Rate by Endpoint (req/sec)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 20, "gradientMode": "opacity"},
+          "unit": "short"
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "high risk"},
+           "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+          {"matcher": {"id": "byName", "options": "low risk"},
+           "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "id": 8,
+      "options": {
+        "legend": {"calcs": ["last","max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {"expr": "heart_risk_predictions_total{risk_level=\"high\"}", "legendFormat": "high risk", "refId": "A"},
+        {"expr": "heart_risk_predictions_total{risk_level=\"low\"}", "legendFormat": "low risk", "refId": "B"}
+      ],
+      "title": "Cumulative Predictions by Risk Level",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 10},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "id": 9,
+      "options": {
+        "legend": {"calcs": ["mean","max","p95"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p50 inference", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p95 inference", "refId": "B"},
+        {"expr": "histogram_quantile(0.99, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p99 inference", "refId": "C"},
+        {"expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m]))", "legendFormat": "p95 end-to-end", "refId": "D"}
+      ],
+      "title": "Inference Latency Percentiles (seconds)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 10},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "id": 10,
+      "options": {
+        "legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {"expr": "rate(http_requests_total{status=\"2xx\"}[5m])", "legendFormat": "2xx {{handler}}", "refId": "A"},
+        {"expr": "rate(http_requests_total{status=~\"4xx|5xx\"}[5m])", "legendFormat": "errors {{handler}}", "refId": "B"}
+      ],
+      "title": "HTTP Status Codes Over Time",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "short",
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "high risk"},
+           "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "#F2495C"}}]},
+          {"matcher": {"id": "byName", "options": "low risk"},
+           "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "#73BF69"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 20},
+      "id": 11,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "pieType": "donut",
+        "tooltip": {"mode": "single"},
+        "legend": {"displayMode": "table", "placement": "right", "values": ["percent","value"]}
+      },
+      "targets": [
+        {"expr": "heart_risk_predictions_total{risk_level=\"high\"}", "legendFormat": "high risk", "refId": "A"},
+        {"expr": "heart_risk_predictions_total{risk_level=\"low\"}", "legendFormat": "low risk", "refId": "B"}
+      ],
+      "title": "Risk Level Distribution (Donut)",
+      "type": "piechart"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "continuous-BlPu"},
+          "custom": {"fillOpacity": 80, "lineWidth": 0, "spanNulls": false},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 20},
+      "id": 12,
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "single"},
+        "bucketSize": "auto",
+        "combine": false
+      },
+      "targets": [
+        {"expr": "rate(heart_risk_batch_size_bucket[5m])", "legendFormat": "{{le}}", "refId": "A"}
+      ],
+      "title": "Batch Request Size Distribution",
+      "type": "histogram"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 0.1},
+            {"color": "red", "value": 0.5}
+          ]},
+          "unit": "s",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 20},
+      "id": 13,
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p95", "refId": "B"},
+        {"expr": "histogram_quantile(0.99, rate(heart_risk_prediction_duration_seconds_bucket[5m]))", "legendFormat": "p99", "refId": "C"}
+      ],
+      "title": "Latency Gauge (p50 / p95 / p99)",
+      "type": "gauge"
     }
+
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["mlops", "heart-disease"],
+  "tags": ["mlops", "heart-disease", "fastapi"],
   "templating": {
     "list": [
       {
@@ -117,5 +406,5 @@
   "timezone": "browser",
   "title": "Heart Disease Risk API",
   "uid": "heart-risk-dashboard",
-  "version": 1
+  "version": 2
 }
