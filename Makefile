@@ -1,53 +1,61 @@
 .PHONY: install test lint format train serve evaluate predict stack-up stack-down k8s-deploy k8s-delete clean
 
+# Detect venv Python — works whether venv is activated or not
+VENV_PY := $(shell if [ -f venv/bin/python ]; then echo venv/bin/python; else echo python3; fi)
+VENV_PIP := $(VENV_PY) -m pip
+PYTEST   := $(VENV_PY) -m pytest
+UVICORN  := $(VENV_PY) -m uvicorn
+MLFLOW   := $(VENV_PY) -m mlflow
+FLAKE8   := $(VENV_PY) -m flake8
+
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 install:
-	pip install -r requirements.txt
+	$(VENV_PIP) install -r requirements.txt
 	@echo "Dependencies installed."
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 
 lint:
-	python -m flake8 src/ api/ tests/ --max-line-length=100 --ignore=E402
+	$(FLAKE8) src/ api/ tests/ --max-line-length=100 --ignore=E402
 	@echo "Lint passed."
 
 test:
-	pytest tests/ -v --tb=short --junitxml=test-results.xml
+	$(PYTEST) tests/ -v --tb=short --junitxml=test-results.xml
 
 # ── Data & Training ───────────────────────────────────────────────────────────
 
 data:
-	python data/download_data.py
+	$(VENV_PY) data/download_data.py
 
 train: data
-	python src/train.py
+	$(VENV_PY) src/train.py
 	@echo "Training complete. Model saved to models/pipeline.pkl"
 
 train-quick:
-	python src/train.py --quick-run
+	$(VENV_PY) src/train.py --quick-run
 
 evaluate:
-	python src/evaluate.py
+	$(VENV_PY) src/evaluate.py
 
 # ── Serving ───────────────────────────────────────────────────────────────────
 
 serve:
-	uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+	$(UVICORN) api.main:app --host 0.0.0.0 --port 8000 --reload
 
 mlflow-ui:
-	mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+	$(MLFLOW) ui --backend-store-uri sqlite:///mlflow.db --port 5000
 
 # ── Standalone inference ──────────────────────────────────────────────────────
 
 predict-sample:
-	python src/predict.py \
+	$(VENV_PY) src/predict.py \
 		--age 67 --sex 1 --cp 4 --trestbps 160 --chol 286 \
 		--fbs 0 --restecg 2 --thalach 108 --exang 1 \
 		--oldpeak 1.5 --slope 2 --ca 3 --thal 7
 
 predict-batch:
-	python src/predict.py --input data/heart.csv --output predictions.csv
+	$(VENV_PY) src/predict.py --input data/heart.csv --output predictions.csv
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 
