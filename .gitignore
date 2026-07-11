@@ -55,3 +55,4 @@ predictions.csv
 take_screenshots.py
 generate_architecture.py
 generate_report.py
+.scripts/
