@@ -182,7 +182,7 @@ add_thin_divider(doc, "DDDDDD")
 
 # ── STUDENT DETAILS — clean 2-col borderless table ───────────────────────────
 
-det = doc.add_table(rows=5, cols=2)
+det = doc.add_table(rows=6, cols=2)
 det.alignment = WD_TABLE_ALIGNMENT.CENTER
 remove_table_borders(det)
 
@@ -191,6 +191,7 @@ DETAIL_ROWS = [
     ("Student ID",   "2024ADO5447"),
     ("Assignment",   "Assignment 01  ·  Total Marks: 50"),
     ("GitHub",       REPO),
+    ("Live API",     f"{RENDER_URL}/docs"),
     ("Dataset",      "UCI Heart Disease Dataset (Cleveland)  ·  297 patients  ·  13 features"),
 ]
 
