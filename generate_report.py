@@ -1062,21 +1062,21 @@ h(doc, "10.4 Cloud Deployment Evidence", level=2)
 # Render evidence screenshots — all taken from the live public URL
 for path, caption in [
     (SHOTS / "render_deployment_card.png",
-     f"Screenshot 17. Live Render deployment — {RENDER_URL}"),
+     f"Screenshot 12. Live Render deployment — {RENDER_URL}"),
     (SHOTS / "render_swagger_ui.png",
-     f"Screenshot 18. Swagger UI live at {RENDER_URL}/docs"),
+     f"Screenshot 13. Swagger UI live at {RENDER_URL}/docs"),
     (SHOTS / "render_swagger_predict.png",
-     "Screenshot 19. /predict endpoint expanded in live Swagger UI."),
+     "Screenshot 14. /predict endpoint expanded in live Swagger UI."),
     (SHOTS / "render_health.png",
-     "Screenshot 20. GET /health — live API response from Render cloud."),
+     "Screenshot 15. GET /health — live API — live API response from Render cloud."),
     (SHOTS / "render_model_info.png",
-     "Screenshot 21. GET /model-info — model metadata from live API."),
+     "Screenshot 16. GET /model-info — model metadata from live API."),
     (SHOTS / "render_stats.png",
-     "Screenshot 22. GET /stats — live prediction counters."),
+     "Screenshot 17. GET /stats — live prediction counters."),
     (SHOTS / "render_predict_high.png",
-     "Screenshot 23. POST /predict — high risk patient (probability 0.9982) via live URL."),
+     "Screenshot 18. POST /predict — high risk patient via live Render URL."),
     (SHOTS / "render_predict_low.png",
-     "Screenshot 24. POST /predict — low risk patient via live public URL."),
+     "Screenshot 19. POST /predict — low risk patient via live Render URL."),
 ]:
     if path.exists():
         img(doc, path, width=6.0, caption=caption)
@@ -1134,11 +1134,11 @@ code(doc, "curl http://localhost/predict -X POST -d '{...}'")
 code(doc, '# {"prediction":1,"probability":0.9982,"risk":"high",...}')
 
 img(doc, SHOTS/"23_kubernetes_deployment.png", width=6.0,
-    caption="Screenshot 12. kubectl output — 2 pods Running, LoadBalancer service, API responding.")
+    caption="Screenshot 20. kubectl output — 2 pods Running, LoadBalancer service, API responding.")
 
 doc.add_page_break()
 
-# ── SECTION 11: MONITORING ────────────────────────────────────────────────────
+# ── SECTION 12: MONITORING ────────────────────────────────────────────────────
 h(doc, "12. Monitoring and Logging")
 
 p(doc, (
@@ -1191,17 +1191,46 @@ p(doc, (
 
 h(doc, "12.4 Monitoring Evidence", level=2)
 img(doc, SHOTS/"16_prometheus_targets.png", width=6.0,
-    caption="Screenshot 13. Prometheus targets — heart-risk-api showing health status UP.")
+    caption="Screenshot 21. Prometheus targets — heart-risk-api showing health status UP.")
 img(doc, SHOTS/"17_prometheus_query.png", width=6.0,
-    caption="Screenshot 14. Prometheus query — heart_risk_predictions_total by risk level.")
+    caption="Screenshot 22. Prometheus query — heart_risk_predictions_total by risk level.")
 img(doc, SHOTS/"18_grafana_dashboard.png", width=6.0,
-    caption="Screenshot 15. Grafana dashboard — 4 panels with live metrics.")
+    caption="Screenshot 23. Grafana dashboard — 4 panels with live metrics.")
 img(doc, SHOTS/"06_api_metrics.png", width=6.0,
-    caption="Screenshot 16. GET /metrics — Prometheus metrics endpoint output.")
+    caption="Screenshot 24. GET /metrics — Prometheus metrics endpoint output.")
+
+h(doc, "12.5 MLflow Experiment Tracking Evidence", level=2)
+p(doc, (
+    "All training runs were tracked in MLflow using a SQLite backend. The MLflow UI "
+    "allows comparing all 3 model runs side by side — parameters, metrics, and every "
+    "artifact (confusion matrix, ROC curve, PR curve, calibration plot, feature "
+    "importance) are accessible per run. The experiment is named "
+    "'heart-disease-classification' and contains runs for logistic_regression, "
+    "random_forest, and xgboost with full hyperparameter tuning results."
+))
+p(doc, "To launch the MLflow UI:")
+code(doc, "mlflow ui --backend-store-uri sqlite:///mlflow.db")
+p(doc, "Then open http://localhost:5000 in a browser.")
+p(doc, (
+    "See Screenshots 1 and 2 (Section 6.2) for the MLflow UI showing the "
+    "heart-disease-classification experiment and the 3 model runs with ROC-AUC metrics. "
+    "Each run stores: model name, hyperparameters (C, n_estimators, max_depth, "
+    "learning_rate), cross-validation ROC-AUC, test ROC-AUC, accuracy, precision, "
+    "recall, F1, and 5 plot artifacts. The best run (Random Forest, test ROC-AUC 0.9464) "
+    "also has the learning curve logged as an artifact."
+))
+table(doc,
+    ["MLflow Run", "CV ROC-AUC", "Test ROC-AUC", "Accuracy", "F1"],
+    [
+        ["logistic_regression", "0.8905", "0.9397", "0.850", "0.836"],
+        ["random_forest ★",     "0.8866", "0.9464", "0.833", "0.808"],
+        ["xgboost",             "0.8914", "0.9252", "0.850", "0.830"],
+    ]
+)
 
 doc.add_page_break()
 
-# ── SECTION 12: ARCHITECTURE ──────────────────────────────────────────────────
+# ── SECTION 13: ARCHITECTURE ─────────────────────────────────────────────────
 h(doc, "13. System Architecture")
 
 p(doc, (
