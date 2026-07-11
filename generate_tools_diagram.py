@@ -1,174 +1,167 @@
 """
-Tools-used diagram.
-Row 1: graphviz (real logos, linear chain — works perfectly)
-Row 2: matplotlib with colored icon-style boxes
+Tools diagram — 4 separate graphviz chains, all horizontal, combined with PIL.
+Each chain is purely linear so graphviz can't mess up the layout.
 """
 import os
 os.environ["PATH"] += ":/opt/homebrew/bin"
 
 from diagrams import Diagram, Edge
 from diagrams.programming.language import Python
-from diagrams.onprem.database import Mysql
+from diagrams.onprem.monitoring import Prometheus, Grafana
+from diagrams.onprem.container import Docker
+from diagrams.onprem.network import Nginx
+from diagrams.onprem.ci import GithubActions
 from diagrams.generic.storage import Storage
 from diagrams.programming.framework import FastAPI
+from diagrams.k8s.compute import Deployment
+from diagrams.k8s.network import Service
+from diagrams.onprem.mlops import Mlflow
 
 from PIL import Image, ImageDraw, ImageFont
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, Circle
-import io
 from pathlib import Path
-import numpy as np
 
 BASE  = Path("screenshots")
 FINAL = BASE / "tools_used.png"
 
-# ── ROW 1: graphviz ───────────────────────────────────────────────────────
-GA = {"bgcolor":"white","pad":"0.6","splines":"ortho",
-      "nodesep":"0.7","ranksep":"1.4","fontname":"Helvetica Neue","rankdir":"LR"}
-NA = {"fontsize":"13","fontname":"Helvetica Neue","fixedsize":"true","width":"1.7","height":"1.7"}
-EA = {"fontsize":"12","fontname":"Helvetica Neue","color":"#444444","penwidth":"2.0"}
+GA  = {"bgcolor":"white","pad":"0.5","splines":"ortho","nodesep":"0.8","ranksep":"1.3","fontname":"Helvetica Neue","rankdir":"LR"}
+GAS = {"bgcolor":"white","pad":"0.3","splines":"ortho","nodesep":"0.6","ranksep":"1.0","fontname":"Helvetica Neue","rankdir":"LR"}
+NA  = {"fontsize":"13","fontname":"Helvetica Neue","fixedsize":"true","width":"1.6","height":"1.6"}
+NAS = {"fontsize":"13","fontname":"Helvetica Neue","fixedsize":"true","width":"1.2","height":"1.2"}
+EA = {"fontsize":"12","fontname":"Helvetica Neue",
+      "color":"#444444","penwidth":"2.0"}
 
-with Diagram("", filename=str(BASE/"row1"), outformat="png",
-             show=False, direction="LR",
-             graph_attr={**GA,"fontsize":"1"}, node_attr=NA, edge_attr=EA):
-    uci     = Storage("UCI Dataset\n303 patients")
-    py      = Python("Python 3.11\npandas · numpy")
-    sklearn = Python("scikit-learn\nColumnTransformer")
-    models  = Python("LR · RF\nXGBoost")
-    mlflow  = Mysql("MLflow\n+ SQLite")
-    pkl     = Storage("pipeline.pkl\njoblib")
-    api     = FastAPI("FastAPI\n+ Uvicorn")
+# ── Chain 1: Main pipeline ─────────────────────────────────────────────────
+with Diagram("", filename=str(BASE/"c1"), outformat="png", show=False,
+             direction="LR", graph_attr={**GA,"fontsize":"1"},
+             node_attr=NA, edge_attr=EA):
+    Storage("UCI Dataset\n303 patients") \
+    >> Edge(label="download") \
+    >> Python("Python 3.11\npandas · numpy") \
+    >> Edge(label="heart.csv") \
+    >> Python("scikit-learn\nColumnTransformer") \
+    >> Edge(label="X_train") \
+    >> Python("LR · RF · XGBoost") \
+    >> Edge(label="best model", color="#16a34a", style="bold") \
+    >> Storage("pipeline.pkl\njoblib") \
+    >> Edge(label="load") \
+    >> FastAPI("FastAPI\n+ Uvicorn")
 
-    uci     >> Edge(label="download") >> py
-    py      >> Edge(label="heart.csv") >> sklearn
-    sklearn >> Edge(label="X_train") >> models
-    models  >> Edge(label="log runs", style="dashed") >> mlflow
-    models  >> Edge(label="best model", color="#16a34a", style="bold") >> pkl
-    pkl     >> Edge(label="load") >> api
+# ── Chain 2: Experiment tracking (separate so it doesn't pull layout) ──────
+with Diagram("", filename=str(BASE/"c2"), outformat="png", show=False,
+             direction="LR", graph_attr={**GA,"fontsize":"1"},
+             node_attr=NA, edge_attr=EA):
+    Python("LR · RF · XGBoost") \
+    >> Edge(label="log params + metrics + artifacts", style="dashed") \
+    >> Mlflow("MLflow\nExperiment Tracking") \
+    >> Edge(label="view at localhost:5000", style="dashed") \
+    >> Mlflow("Compare\nAll Runs")
 
-# ── ROW 2: matplotlib deployment section ──────────────────────────────────
-TOOLS = [
-    # Row 1: FastAPI → Docker → K8s  (y=3.8)
-    (1.5,  3.8, "FastAPI\n+ Uvicorn",    "F",  "#ECFDF5", "#059669"),
-    (5.5,  3.8, "Docker\n3.11-slim",     "D",  "#E0F2FE", "#0284C7"),
-    (9.5,  4.8, "Kubernetes\n2 replicas","K",  "#EEF2FF", "#4F46E5"),
-    (9.5,  2.8, "Render\nCloud HTTPS",   "R",  "#F0FDF4", "#16A34A"),
-    # Row 2: Prometheus → Grafana (y=3.8, after Docker)
-    (13.5, 3.8, "Prometheus\n:9090",     "P",  "#FEF2F2", "#DC2626"),
-    (17.0, 3.8, "Grafana\n13 panels",    "G",  "#FFF7ED", "#EA580C"),
-    # CI/CD row (y=1.2)
-    (1.5,  1.2, "GitHub Actions\nCI/CD", ">",  "#EFF6FF", "#2563EB"),
-    (5.5,  1.2, "Pytest\n25 tests",      "T",  "#FEF9C3", "#CA8A04"),
+# ── Chain 3: Docker → Kubernetes + Render ─────────────────────────────────
+with Diagram("", filename=str(BASE/"c3"), outformat="png", show=False,
+             direction="LR", graph_attr={**GA,"fontsize":"1"},
+             node_attr=NA, edge_attr=EA):
+    FastAPI("FastAPI") \
+    >> Edge(label="build") \
+    >> Docker("Docker\n3.11-slim") \
+    >> Edge(label="local K8s") \
+    >> Deployment("Kubernetes\n2 replicas") \
+    >> Edge(label="LoadBalancer") \
+    >> Service("port 80→8000")
+
+with Diagram("", filename=str(BASE/"c3b"), outformat="png", show=False,
+             direction="LR", graph_attr={**GA,"fontsize":"1"},
+             node_attr=NA, edge_attr=EA):
+    FastAPI("FastAPI\n+ Uvicorn") \
+    >> Edge(label="Dockerfile.render") \
+    >> Docker("Docker\n3.11-slim") \
+    >> Edge(label="auto-deploy on push") \
+    >> Nginx("Render\nCloud HTTPS\n(free tier)")
+
+# ── Chain 4: Monitoring ────────────────────────────────────────────────────
+with Diagram("", filename=str(BASE/"c4"), outformat="png", show=False,
+             direction="LR", graph_attr={**GA,"fontsize":"1"},
+             node_attr=NA, edge_attr=EA):
+    FastAPI("FastAPI") \
+    >> Edge(label="exposes /metrics endpoint") \
+    >> Prometheus("Prometheus\n:9090") \
+    >> Edge(label="scrapes every 15s") \
+    >> Grafana("Grafana\n13-panel dashboard")
+
+# ── Chain 5: CI/CD ─────────────────────────────────────────────────────────
+with Diagram("", filename=str(BASE/"c5"), outformat="png", show=False,
+             direction="LR", graph_attr={**GA,"fontsize":"1"},
+             node_attr=NA, edge_attr=EA):
+    GithubActions("GitHub Actions\npush → ubuntu-latest VM") \
+    >> Edge(label="flake8 → pytest 25 tests → train → upload artifacts") \
+    >> Python("Pytest\n25 tests pass")
+
+# ── Combine all chains with PIL ────────────────────────────────────────────
+chains = ["c1","c2","c3","c3b","c4","c5"]
+imgs   = [Image.open(BASE/f"{c}.png") for c in chains]
+
+labels = [
+    "① Data Acquisition  →  Feature Engineering  →  Model Training  →  Best Model  →  FastAPI",
+    "② Experiment Tracking  (all runs logged with params, metrics, plots)",
+    "③ Containerisation  →  Local Kubernetes Deployment  (2 replicas, LoadBalancer)",
+    "④ Cloud Deployment:  FastAPI  →  Docker (Dockerfile.render)  →  Render  (auto-deploy on git push)",
+    "⑤ Monitoring  (Prometheus scrapes /metrics, Grafana 13-panel dashboard)",
+    "⑥ CI/CD  (GitHub Actions: lint → test → train → upload artifacts on every push)",
 ]
 
-ARROWS = [
-    (1.5+1.1, 3.5,  5.0-1.1, 3.5,  "build",          "#0284C7"),
-    (5.0+1.1, 4.0,  8.5-1.1, 4.5,  "local K8s",      "#4F46E5"),
-    (5.0+1.1, 3.0,  8.5-1.1, 2.5,  "cloud deploy",   "#16A34A"),
-    (1.5+1.1, 3.0,  12.5-1.1,4.5,  "/metrics",       "#DC2626"),
-    (12.5+1.1,4.5,  16.5,    4.5,   "",               "#EA580C"),   # prom → grafana
-    (12.5+1.1,2.5,  16.5,    2.5,   "",               "#EA580C"),
-    (1.5+1.1, 1.0,  5.0-1.1, 1.0,  "lint→test→train","#2563EB"),
-]
+# Auto-crop white margins from each image
+def crop_white(img, margin=20):
+    import numpy as np
+    arr = np.array(img.convert("RGB"))
+    mask = ~((arr[:,:,0]>245) & (arr[:,:,1]>245) & (arr[:,:,2]>245))
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    if rows.any() and cols.any():
+        rmin,rmax = np.where(rows)[0][[0,-1]]
+        cmin,cmax = np.where(cols)[0][[0,-1]]
+        rmin = max(0, rmin-margin)
+        rmax = min(img.height, rmax+margin)
+        cmin = max(0, cmin-margin)
+        cmax = min(img.width, cmax+margin)
+        return img.crop((cmin, rmin, cmax, rmax))
+    return img
 
-# merge prom and grafana arrows
-ARROWS = [
-    # FastAPI → Docker
-    (2.6,  3.8,  4.4,  3.8,  "build",           "#0284C7"),
-    # Docker → K8s (up)
-    (6.6,  4.2,  8.4,  4.8,  "local K8s",       "#4F46E5"),
-    # Docker → Render (down)
-    (6.6,  3.4,  8.4,  2.8,  "cloud deploy",    "#16A34A"),
-    # FastAPI → Prometheus
-    (2.6,  3.5,  12.4, 3.8,  "/metrics",        "#DC2626"),
-    # Prometheus → Grafana
-    (14.6, 3.8,  15.9, 3.8,  "visualise",       "#EA580C"),
-    # GitHub → Pytest
-    (2.6,  1.2,  4.4,  1.2,  "lint→test→train", "#2563EB"),
-]
+imgs = [crop_white(img) for img in imgs]
 
-FIG_W, FIG_H = 20, 6.5
-fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
-fig.patch.set_facecolor("white")
-ax.set_facecolor("white")
-ax.set_xlim(0, FIG_W)
-ax.set_ylim(0, FIG_H)
-ax.axis("off")
-
-# Grafana already in TOOLS above
-
-# Draw nodes
-for (cx, cy, lbl, sym, fill, border) in TOOLS:
-    # outer card
-    card = FancyBboxPatch((cx-1.1, cy-0.85), 2.2, 1.7,
-        boxstyle="round,pad=0,rounding_size=0.18",
-        linewidth=2, edgecolor=border, facecolor=fill, zorder=3)
-    ax.add_patch(card)
-    # color top bar
-    topbar = FancyBboxPatch((cx-1.1, cy+0.55), 2.2, 0.3,
-        boxstyle="round,pad=0,rounding_size=0.12",
-        linewidth=0, facecolor=border, alpha=0.85, zorder=4)
-    ax.add_patch(topbar)
-    # symbol in top bar
-    ax.text(cx, cy+0.7, sym, fontsize=13, ha="center", va="center",
-        color="white", fontweight="bold", zorder=5)
-    # label
-    ax.text(cx, cy-0.08, lbl, fontsize=8.5, ha="center", va="center",
-        color="#1E293B", fontweight="bold", zorder=5, linespacing=1.4)
-
-# Draw arrows
-for (x1, y1, x2, y2, lbl, col) in ARROWS:
-    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
-        arrowprops=dict(arrowstyle="-|>", color=col, lw=2,
-        mutation_scale=14, connectionstyle="arc3,rad=0.0"), zorder=4)
-    if lbl:
-        mx, my = (x1+x2)/2, (y1+y2)/2 + 0.2
-        ax.text(mx, my, lbl, fontsize=7.5, color=col, ha="center",
-            style="italic", fontweight="bold",
-            bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
-                      edgecolor=col, linewidth=0.8, alpha=0.95), zorder=6)
-
-plt.tight_layout(pad=0)
-row2_buf = io.BytesIO()
-plt.savefig(row2_buf, dpi=160, bbox_inches="tight",
-            facecolor="white", edgecolor="none")
-plt.close()
-row2_buf.seek(0)
-img2 = Image.open(row2_buf).copy()
-
-# ── Combine ────────────────────────────────────────────────────────────────
-img1 = Image.open(BASE/"row1.png")
-W = max(img1.width, img2.width)
+# Cap height — 2-node chains render too large; clamp to 350px tall
+MAX_H = 350
+def cap_height(img):
+    if img.height > MAX_H:
+        return img.resize((int(img.width * MAX_H / img.height), MAX_H), Image.LANCZOS)
+    return img
+imgs = [cap_height(img) for img in imgs]
+W = max(img.width for img in imgs)
 
 def resize_w(img):
     return img.resize((W, int(img.height * W / img.width)), Image.LANCZOS)
 
-img1 = resize_w(img1)
-img2 = resize_w(img2)
+BAR_H = 46
+PAD   = 20
 
-def section_bar(img, label):
-    H = 46
-    new = Image.new("RGB", (img.width, img.height + H), "white")
-    d = ImageDraw.Draw(new)
-    d.rectangle([0, 0, img.width, H], fill=(241, 245, 249))
-    d.line([0, H, img.width, H], fill=(203, 213, 225), width=2)
+def add_label(img, text):
+    img = resize_w(img)
+    new = Image.new("RGB", (img.width, img.height + BAR_H), "white")
+    d   = ImageDraw.Draw(new)
+    d.rectangle([0, 0, img.width, BAR_H], fill=(241, 245, 249))
+    d.line([0, BAR_H, img.width, BAR_H], fill=(203, 213, 225), width=2)
     try:
-        fnt = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 21)
+        fnt = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 19)
     except Exception:
         fnt = ImageFont.load_default()
-    d.text((16, 11), label, fill=(30, 41, 59), font=fnt)
-    new.paste(img, (0, H))
+    d.text((16, 13), text, fill=(30, 41, 59), font=fnt)
+    new.paste(img, (0, BAR_H))
     return new
 
-img1 = section_bar(img1, "● Main Pipeline:  Data → Feature Engineering → Training (LR · RF · XGBoost) → MLflow → FastAPI")
-img2 = section_bar(img2, "● Deployment + CI/CD + Monitoring:  Docker → Kubernetes / Render  ·  Prometheus → Grafana  ·  GitHub Actions")
+labelled = [add_label(img, lbl) for img, lbl in zip(imgs, labels)]
 
-PAD = 24
-TH  = 72
-canvas_h = TH + img1.height + PAD + img2.height + PAD
-canvas = Image.new("RGB", (W + 2*PAD, canvas_h), "white")
-d = ImageDraw.Draw(canvas)
+TH = 76
+total_h = TH + sum(img.height + PAD for img in labelled)
+canvas  = Image.new("RGB", (W + 2*PAD, total_h), "white")
+d       = ImageDraw.Draw(canvas)
 
 try:
     tf = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 30)
@@ -176,15 +169,26 @@ try:
 except Exception:
     tf = sf = ImageFont.load_default()
 
-d.text((W//2+PAD, 12), "Tools Used — Heart Disease MLOps Pipeline",
-       fill=(15,23,42), font=tf, anchor="mt")
-d.text((W//2+PAD, 50),
-    "Python · scikit-learn · XGBoost · MLflow · FastAPI · Docker · Kubernetes · Render · Prometheus · Grafana · GitHub Actions · Pytest",
-    fill=(100,116,139), font=sf, anchor="mt")
-d.line([PAD, TH-2, W+PAD, TH-2], fill=(226,232,240), width=2)
-canvas.paste(img1, (PAD, TH))
-canvas.paste(img2, (PAD, TH + img1.height + PAD))
-d.rectangle([2,2,canvas.width-3,canvas.height-3], outline=(203,213,225), width=3)
-canvas.save(FINAL, dpi=(160,160))
-(BASE/"row1.png").unlink(missing_ok=True)
+cx = W // 2 + PAD
+d.text((cx, 12), "Tools Used — Heart Disease MLOps Pipeline",
+       fill=(15, 23, 42), font=tf, anchor="mt")
+d.text((cx, 52),
+    "Python · scikit-learn · XGBoost · MLflow · FastAPI · Docker · Kubernetes · Render · Prometheus · Grafana · GitHub Actions",
+    fill=(100, 116, 139), font=sf, anchor="mt")
+d.line([PAD, TH-2, W+PAD, TH-2], fill=(226, 232, 240), width=2)
+
+y = TH
+for img in labelled:
+    canvas.paste(img, (PAD, y))
+    y += img.height + PAD
+    # light separator
+    d.line([PAD, y-PAD//2, W+PAD, y-PAD//2], fill=(241, 245, 249), width=1)
+
+d.rectangle([2, 2, canvas.width-3, canvas.height-3],
+            outline=(203, 213, 225), width=3)
+canvas.save(FINAL, dpi=(160, 160))
+
+for c in chains:
+    (BASE/f"{c}.png").unlink(missing_ok=True)
+
 print(f"Saved: {FINAL}  ({FINAL.stat().st_size//1024}KB)")
