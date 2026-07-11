@@ -1,0 +1,70 @@
+{
+  "single_patient_high_risk": {
+    "description": "67-year-old male with multiple high-risk indicators",
+    "expected_risk": "high",
+    "expected_probability_approx": 0.998,
+    "input": {
+      "age": 67,
+      "sex": 1,
+      "cp": 4,
+      "trestbps": 160,
+      "chol": 286,
+      "fbs": 0,
+      "restecg": 2,
+      "thalach": 108,
+      "exang": 1,
+      "oldpeak": 1.5,
+      "slope": 2,
+      "ca": 3,
+      "thal": 7
+    }
+  },
+  "single_patient_low_risk": {
+    "description": "35-year-old female with good cardiac metrics",
+    "expected_risk": "low",
+    "expected_probability_approx": 0.04,
+    "input": {
+      "age": 35,
+      "sex": 0,
+      "cp": 1,
+      "trestbps": 105,
+      "chol": 180,
+      "fbs": 0,
+      "restecg": 0,
+      "thalach": 180,
+      "exang": 0,
+      "oldpeak": 0.0,
+      "slope": 1,
+      "ca": 0,
+      "thal": 3
+    }
+  },
+  "batch_request": {
+    "description": "POST to /predict-batch with 2 patients",
+    "endpoint": "/predict-batch",
+    "input": [
+      {
+        "age": 67, "sex": 1, "cp": 4, "trestbps": 160, "chol": 286,
+        "fbs": 0, "restecg": 2, "thalach": 108, "exang": 1,
+        "oldpeak": 1.5, "slope": 2, "ca": 3, "thal": 7
+      },
+      {
+        "age": 35, "sex": 0, "cp": 1, "trestbps": 105, "chol": 180,
+        "fbs": 0, "restecg": 0, "thalach": 180, "exang": 0,
+        "oldpeak": 0.0, "slope": 1, "ca": 0, "thal": 3
+      }
+    ]
+  },
+  "curl_commands": {
+    "health":       "curl http://localhost:8000/health",
+    "predict":      "curl -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @data/sample_input.json",
+    "model_info":   "curl http://localhost:8000/model-info",
+    "stats":        "curl http://localhost:8000/stats"
+  },
+  "field_reference": {
+    "cp":   "Chest pain type: 1=typical angina, 2=atypical, 3=non-anginal, 4=asymptomatic",
+    "thal": "3=normal, 6=fixed defect, 7=reversable defect",
+    "slope":"1=upsloping, 2=flat, 3=downsloping",
+    "restecg": "0=normal, 1=ST-T abnormality, 2=LV hypertrophy"
+  }
+}

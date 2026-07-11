@@ -41,10 +41,17 @@ data/*.data
 .vscode/
 .idea/
 
-# Test coverage
+# Test artifacts
 .coverage
 htmlcov/
 .pytest_cache/
+test-results.xml
+predictions.csv
 
 # Docker
 *.tar
+
+# Internal tooling (report + screenshot generators)
+take_screenshots.py
+generate_architecture.py
+generate_report.py
