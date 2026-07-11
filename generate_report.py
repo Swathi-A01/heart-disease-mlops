@@ -11,9 +11,10 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-PLOTS  = Path("plots")
-SHOTS  = Path("screenshots")
-REPO   = "https://github.com/Swathi-A01/heart-disease-mlops"
+PLOTS       = Path("plots")
+SHOTS       = Path("screenshots")
+REPO        = "https://github.com/Swathi-A01/heart-disease-mlops"
+RENDER_URL  = "https://heart-disease-mlops-rcg4.onrender.com"
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -1005,18 +1006,90 @@ img(doc, SHOTS/"04_api_model_info.png", width=6.0,
 
 doc.add_page_break()
 
-# ── SECTION 10: KUBERNETES ────────────────────────────────────────────────────
-h(doc, "10. Production Deployment on Kubernetes")
+# ── SECTION 10: CLOUD DEPLOYMENT (RENDER) ────────────────────────────────────
+h(doc, "10. Cloud Deployment on Render")
 
 p(doc, (
-    "The Docker container was deployed to Kubernetes using Docker Desktop's built-in "
-    "Kubernetes cluster. This is functionally equivalent to deploying on a cloud provider "
-    "— the same kubectl commands and the same manifest files would work on AWS EKS, "
-    "Google GKE, or Azure AKS. Docker Desktop was chosen to avoid cloud costs while "
-    "demonstrating full Kubernetes capability."
+    "The API is deployed publicly on Render at a permanent HTTPS URL. Render was chosen "
+    "because it deploys directly from the GitHub repository using the Dockerfile — no "
+    "separate CI step needed. Every push to main triggers an automatic redeploy, keeping "
+    "the live API in sync with the code."
 ))
 
-h(doc, "10.1 Deployment Manifest (k8s/deployment.yaml)", level=2)
+p(doc, f"Live API URL: {RENDER_URL}")
+p(doc, f"Swagger UI:   {RENDER_URL}/docs")
+
+h(doc, "10.1 Deployment Configuration", level=2)
+table(doc,
+    ["Setting", "Value"],
+    [
+        ["Platform",        "Render (cloud PaaS)"],
+        ["Instance Type",   "Free tier — 512MB RAM, 0.1 CPU"],
+        ["Region",          "Singapore"],
+        ["Dockerfile",      "Dockerfile.render (lightweight — no training deps)"],
+        ["Auto-deploy",     "Yes — every push to main branch triggers redeploy"],
+        ["HTTPS",           "Automatic TLS certificate provided by Render"],
+        ["Sleep behaviour", "Sleeps after 15 min inactivity, wakes in ~30 sec"],
+    ]
+)
+
+h(doc, "10.2 Why a Separate Dockerfile for Cloud", level=2)
+p(doc, (
+    "The main Dockerfile trains the model inside the container (to avoid sklearn version "
+    "mismatches in local development). However, training requires MLflow, matplotlib, "
+    "seaborn, and XGBoost — which together push the image size above Render's free tier "
+    "memory limit. Dockerfile.render uses requirements-api.txt (serving dependencies only) "
+    "and copies the pre-trained pipeline.pkl directly from the repository. This keeps the "
+    "cloud image under 300MB and builds in under 3 minutes."
+))
+
+h(doc, "10.3 Live API Test Commands", level=2)
+code(doc, f"# Health check")
+code(doc, f"curl {RENDER_URL}/health")
+code(doc, f'# Response: {{"status":"ok","model":"heart-disease-classifier","version":"1.0.0"}}')
+code(doc, "")
+code(doc, f"# High risk patient prediction")
+code(doc, f'curl -X POST {RENDER_URL}/predict \\')
+code(doc, '  -H "Content-Type: application/json" \\')
+code(doc, '  -d \'{"age":67,"sex":1,"cp":4,"trestbps":160,"chol":286,')
+code(doc, '       "fbs":0,"restecg":2,"thalach":108,"exang":1,')
+code(doc, '       "oldpeak":1.5,"slope":2,"ca":3,"thal":7}\'')
+code(doc, '# Response: {"prediction":1,"probability":0.9982,"risk":"high",...}')
+
+h(doc, "10.4 Cloud Deployment Evidence", level=2)
+
+# Use screenshots if available, otherwise show placeholder text
+render_swagger   = SHOTS / "render_swagger_ui.png"
+render_health    = SHOTS / "render_health.png"
+render_predict_h = SHOTS / "render_predict_high.png"
+render_predict_l = SHOTS / "render_predict_low.png"
+
+if render_swagger.exists():
+    img(doc, render_swagger, width=6.0,
+        caption=f"Screenshot. Live Swagger UI at {RENDER_URL}/docs")
+if render_health.exists():
+    img(doc, render_health, width=6.0,
+        caption="Screenshot. GET /health — live cloud deployment response.")
+if render_predict_h.exists():
+    img(doc, render_predict_h, width=6.0,
+        caption="Screenshot. POST /predict — high risk patient via public Render URL.")
+if render_predict_l.exists():
+    img(doc, render_predict_l, width=6.0,
+        caption="Screenshot. POST /predict — low risk patient via public Render URL.")
+
+doc.add_page_break()
+
+# ── SECTION 11: KUBERNETES ────────────────────────────────────────────────────
+h(doc, "11. Local Kubernetes Deployment (Docker Desktop)")
+
+p(doc, (
+    "In addition to the cloud deployment, the API was also deployed to a local Kubernetes "
+    "cluster using Docker Desktop's built-in Kubernetes engine. This demonstrates "
+    "Kubernetes orchestration patterns (replicas, health probes, LoadBalancer services) "
+    "that would apply identically on AWS EKS, Google GKE, or Azure AKS."
+))
+
+h(doc, "11.1 Deployment Manifest (k8s/deployment.yaml)", level=2)
 p(doc, "Every field in the deployment manifest was chosen deliberately:")
 table(doc,
     ["Configuration", "Value", "Reason"],
@@ -1032,14 +1105,14 @@ table(doc,
     ]
 )
 
-h(doc, "10.2 Service Manifest (k8s/service.yaml)", level=2)
+h(doc, "11.2 Service Manifest (k8s/service.yaml)", level=2)
 p(doc, (
     "A LoadBalancer service exposes the deployment externally. Port 80 routes to the "
     "container's port 8000. On Docker Desktop, LoadBalancer services are automatically "
     "accessible on localhost — no additional configuration needed."
 ))
 
-h(doc, "10.3 Deployment Steps and Output", level=2)
+h(doc, "11.3 Deployment Steps and Output", level=2)
 code(doc, "kubectl apply -f k8s/")
 code(doc, "# deployment.apps/heart-risk-deployment created")
 code(doc, "# service/heart-risk-service created")
@@ -1062,7 +1135,7 @@ img(doc, SHOTS/"23_kubernetes_deployment.png", width=6.0,
 doc.add_page_break()
 
 # ── SECTION 11: MONITORING ────────────────────────────────────────────────────
-h(doc, "11. Monitoring and Logging")
+h(doc, "12. Monitoring and Logging")
 
 p(doc, (
     "For monitoring I used prometheus-fastapi-instrumentator, which with a single line "
@@ -1071,7 +1144,7 @@ p(doc, (
     "application-specific metrics that give insight into the model's behaviour in production."
 ))
 
-h(doc, "11.1 Custom Prometheus Metrics", level=2)
+h(doc, "12.1 Custom Prometheus Metrics", level=2)
 table(doc,
     ["Metric Name", "Type", "Labels", "Purpose"],
     [
@@ -1093,7 +1166,7 @@ table(doc,
     ]
 )
 
-h(doc, "11.2 Structured Request Logging", level=2)
+h(doc, "12.2 Structured Request Logging", level=2)
 p(doc, (
     "Every prediction is logged in a structured format including the key clinical features, "
     "the predicted probability, and the risk label. This creates an audit trail that could "
@@ -1102,7 +1175,7 @@ p(doc, (
 code(doc, "2026-07-10 15:56:20 INFO PREDICT age=67 sex=1 cp=4 prob=0.9982 result=high hr_reserve=45.0")
 code(doc, "2026-07-10 15:56:21 INFO PREDICT age=45 sex=0 cp=1 prob=0.0353 result=low hr_reserve=-5.0")
 
-h(doc, "11.3 Monitoring Stack", level=2)
+h(doc, "12.3 Monitoring Stack", level=2)
 p(doc, "The monitoring stack is started with a single command:")
 code(doc, "make stack-up   # OR: docker compose -f docker-compose.full.yml up -d")
 p(doc, (
@@ -1112,7 +1185,7 @@ p(doc, (
     "rate, total predictions by risk level, latency p50/p95, and API success rate."
 ))
 
-h(doc, "11.4 Monitoring Evidence", level=2)
+h(doc, "12.4 Monitoring Evidence", level=2)
 img(doc, SHOTS/"16_prometheus_targets.png", width=6.0,
     caption="Screenshot 13. Prometheus targets — heart-risk-api showing health status UP.")
 img(doc, SHOTS/"17_prometheus_query.png", width=6.0,
@@ -1125,7 +1198,7 @@ img(doc, SHOTS/"06_api_metrics.png", width=6.0,
 doc.add_page_break()
 
 # ── SECTION 12: ARCHITECTURE ──────────────────────────────────────────────────
-h(doc, "12. System Architecture")
+h(doc, "13. System Architecture")
 
 p(doc, (
     "The diagram below shows the complete data flow from raw CSV to monitored Kubernetes "
@@ -1139,14 +1212,14 @@ img(doc, PLOTS/"architecture_diagram.png", width=6.5,
 doc.add_page_break()
 
 # ── SECTION 13: STANDALONE TOOLS ─────────────────────────────────────────────
-h(doc, "13. Standalone CLI Tools")
+h(doc, "14. Standalone CLI Tools")
 
 p(doc, (
     "Beyond the main training and serving components, two standalone Python scripts were "
     "built to demonstrate inference and evaluation capabilities without needing the API server."
 ))
 
-h(doc, "13.1 src/predict.py — CLI Inference", level=2)
+h(doc, "14.1 src/predict.py — CLI Inference", level=2)
 p(doc, "Runs predictions directly from the command line with coloured terminal output:")
 code(doc, "# Single patient")
 code(doc, "python src/predict.py --age 67 --sex 1 --cp 4 --trestbps 160 --chol 286 \\")
@@ -1163,7 +1236,7 @@ code(doc, "# Batch prediction from CSV")
 code(doc, "python src/predict.py --input data/heart.csv --output predictions.csv")
 code(doc, "# Accuracy on provided labels: 86.2% (256/297)")
 
-h(doc, "13.2 src/evaluate.py — Model Comparison Report", level=2)
+h(doc, "14.2 src/evaluate.py — Model Comparison Report", level=2)
 p(doc, "Fetches all MLflow runs, runs fresh cross-validation, and prints a full comparison:")
 code(doc, "python src/evaluate.py")
 code(doc, "")
@@ -1178,7 +1251,7 @@ code(doc, "Saves: reports/model_comparison.csv")
 doc.add_page_break()
 
 # ── SECTION 14: REPOSITORY STRUCTURE ─────────────────────────────────────────
-h(doc, "14. Repository Structure")
+h(doc, "15. Repository Structure")
 
 p(doc, "The full repository with line counts and purpose of each file:")
 code(doc, "heart-disease-mlops/")
@@ -1219,7 +1292,7 @@ code(doc, "└── generate_architecture.py             — architecture diagr
 doc.add_page_break()
 
 # ── SECTION 15: REFERENCES ────────────────────────────────────────────────────
-h(doc, "15. References")
+h(doc, "16. References")
 
 refs = [
     "Detrano, R. et al. (1989). International application of a new probability algorithm for the diagnosis of coronary artery disease. American Journal of Cardiology, 64(5), 304–310.",

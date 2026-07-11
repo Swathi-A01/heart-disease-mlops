@@ -11,12 +11,14 @@
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-deployed-326CE5?logo=kubernetes&logoColor=white)
 ![Prometheus](https://img.shields.io/badge/Prometheus-monitored-E6522C?logo=prometheus&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green)
+[![Live API](https://img.shields.io/badge/Live_API-Render-46E3B7?logo=render&logoColor=white)](https://heart-disease-mlops-rcg4.onrender.com/docs)
 
 <br/>
 
 > **Predict heart disease risk from clinical patient data — trained, tracked, containerised, deployed, and monitored.**
 > Built as a full MLOps pipeline for BITS Pilani AIMLCZG523 Assignment 01.
+>
+> **Live API:** https://heart-disease-mlops-rcg4.onrender.com/docs
 
 </div>
 
