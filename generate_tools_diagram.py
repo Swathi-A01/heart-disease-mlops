@@ -16,6 +16,7 @@ from diagrams.programming.framework import FastAPI
 from diagrams.k8s.compute import Deployment
 from diagrams.k8s.network import Service
 from diagrams.onprem.mlops import Mlflow
+from diagrams.generic.database import SQL
 
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
@@ -53,8 +54,8 @@ with Diagram("", filename=str(BASE/"c2"), outformat="png", show=False,
     Python("LR · RF · XGBoost") \
     >> Edge(label="log params + metrics + artifacts", style="dashed") \
     >> Mlflow("MLflow\nExperiment Tracking") \
-    >> Edge(label="view at localhost:5000", style="dashed") \
-    >> Mlflow("Compare\nAll Runs")
+    >> Edge(label="stored in", style="dashed") \
+    >> SQL("SQLite\nmlflow.db")
 
 # ── Chain 3: Docker → Kubernetes + Render ─────────────────────────────────
 with Diagram("", filename=str(BASE/"c3"), outformat="png", show=False,
