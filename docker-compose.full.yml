@@ -1,0 +1,64 @@
+version: "3.8"
+
+# Full-stack docker-compose — boots everything in one command:
+#   docker compose -f docker-compose.full.yml up -d
+#
+#   API:        http://localhost:8000/docs
+#   MLflow:     http://localhost:5001
+#   Prometheus: http://localhost:9090
+#   Grafana:    http://localhost:3000  (admin/admin)
+
+services:
+
+  api:
+    build: .
+    container_name: heart-risk-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mlflow:
+    image: python:3.11-slim
+    container_name: heart-risk-mlflow
+    working_dir: /mlflow
+    volumes:
+      - ./mlflow.db:/mlflow/mlflow.db
+    ports:
+      - "5001:5000"
+    command: >
+      bash -c "pip install mlflow --quiet &&
+               mlflow ui --host 0.0.0.0 --port 5000
+               --backend-store-uri sqlite:///mlflow.db"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: heart-risk-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: heart-risk-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  grafana-data:

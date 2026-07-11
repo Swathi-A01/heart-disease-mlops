@@ -14,6 +14,12 @@ def test_health(api_client):
     assert "version" in r.json()
 
 
+def test_ready(api_client):
+    r = api_client.get("/ready")
+    assert r.status_code == 200
+    assert r.json()["ready"] is True
+
+
 def test_predict_returns_all_fields(api_client, sample_low_risk):
     r = api_client.post("/predict", json=sample_low_risk)
     assert r.status_code == 200

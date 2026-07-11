@@ -30,9 +30,17 @@ app = FastAPI(
     description=(
         "Predicts heart disease risk from patient health data. "
         "Uses a Random Forest classifier trained on the UCI Heart Disease (Cleveland) dataset. "
-        "Features include clinical measurements and derived biomarkers."
+        "Features include clinical measurements and derived biomarkers (heart rate reserve, "
+        "BP category per JNC-8, cholesterol risk tier per ATP III)."
     ),
     version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "health", "description": "Liveness and readiness checks"},
+        {"name": "predict", "description": "Model inference endpoints"},
+        {"name": "model", "description": "Model metadata and runtime stats"},
+    ],
 )
 
 Instrumentator().instrument(app).expose(app)
@@ -132,12 +140,19 @@ def _make_prediction(data: PatientData) -> PredictionResponse:
     )
 
 
-@app.get("/health")
+@app.get("/health", tags=["health"])
 def health():
     return {"status": "ok", "model": "heart-disease-classifier", "version": "1.0.0"}
 
 
-@app.get("/model-info")
+@app.get("/ready", tags=["health"])
+def ready():
+    if pipeline is None:
+        return {"ready": False, "reason": "model not loaded"}
+    return {"ready": True}
+
+
+@app.get("/model-info", tags=["model"])
 def model_info():
     clf = pipeline.named_steps["classifier"]
     return {
@@ -152,7 +167,7 @@ def model_info():
     }
 
 
-@app.get("/stats")
+@app.get("/stats", tags=["model"])
 def stats():
     total = _stats["total_predictions"]
     high = _stats["high_risk"]
@@ -165,12 +180,12 @@ def stats():
     }
 
 
-@app.post("/predict", response_model=PredictionResponse)
+@app.post("/predict", response_model=PredictionResponse, tags=["predict"])
 def predict(data: PatientData):
     return _make_prediction(data)
 
 
-@app.post("/predict-batch", response_model=BatchPredictionResponse)
+@app.post("/predict-batch", response_model=BatchPredictionResponse, tags=["predict"])
 def predict_batch(patients: List[PatientData]):
     if len(patients) == 0:
         raise HTTPException(status_code=400, detail="Batch must contain at least one patient.")
