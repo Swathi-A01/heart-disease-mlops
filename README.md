@@ -167,11 +167,11 @@ heart-disease-mlops/
 
 | Model | CV ROC-AUC | Test ROC-AUC | Accuracy | F1 |
 |-------|-----------|-------------|----------|----|
-| Logistic Regression | 0.8905 | 0.9397 | 0.850 | 0.836 |
-| **Random Forest** ★ | **0.8866** | **0.9464** | **0.833** | **0.808** |
+| **Logistic Regression** ★ | **0.8905** | **0.9531** | **0.850** | **0.836** |
+| Random Forest | 0.8866 | 0.9464 | 0.833 | 0.808 |
 | XGBoost | 0.8914 | 0.9252 | 0.850 | 0.830 |
 
-★ Selected as production model (highest test ROC-AUC)
+★ Selected as production model (highest test ROC-AUC: Logistic Regression 0.9531)
 
 ---
 
