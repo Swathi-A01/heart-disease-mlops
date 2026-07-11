@@ -1,0 +1,21 @@
+# Minimal requirements for API serving only (used by Render/cloud deployment)
+# Training dependencies (mlflow, matplotlib, seaborn, flake8, pytest) are excluded
+# to keep the Docker image small enough for free-tier cloud deployment.
+
+# Data handling
+pandas==2.2.0
+numpy==1.26.4
+
+# ML inference only (no training)
+scikit-learn==1.4.0
+xgboost==2.0.3
+joblib==1.3.2
+
+# API
+fastapi==0.110.0
+uvicorn==0.29.0
+pydantic==2.6.3
+
+# Monitoring
+prometheus-fastapi-instrumentator==6.1.0
+prometheus-client==0.20.0
