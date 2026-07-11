@@ -118,73 +118,11 @@ for section in doc.sections:
 
 # ── COVER PAGE ────────────────────────────────────────────────────────────────
 
-# Top accent bar
 from docx.oxml import OxmlElement as OXE
 from docx.oxml.ns import qn as QN
+from docx.shared import Inches as IN
 
-def add_color_bar(doc, hex_color="1A1A2E", height_pt=12):
-    """Full-width colored bar using a 1-cell table."""
-    tbl = doc.add_table(rows=1, cols=1)
-    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-    cell = tbl.rows[0].cells[0]
-    cell.text = ""
-    tc = cell._tc
-    tcPr = tc.get_or_add_tcPr()
-    # background
-    shd = OXE("w:shd")
-    shd.set(QN("w:val"), "clear")
-    shd.set(QN("w:color"), "auto")
-    shd.set(QN("w:fill"), hex_color)
-    tcPr.append(shd)
-    # row height
-    trPr = tbl.rows[0]._tr.get_or_add_trPr()
-    trHeight = OXE("w:trHeight")
-    trHeight.set(QN("w:val"), str(int(height_pt * 20)))
-    trHeight.set(QN("w:hRule"), "exact")
-    trPr.append(trHeight)
-    # remove cell margins
-    tcMar = OXE("w:tcMar")
-    for side in ("top","bottom","left","right"):
-        m = OXE(f"w:{side}")
-        m.set(QN("w:w"), "0"); m.set(QN("w:type"), "dxa")
-        tcMar.append(m)
-    tcPr.append(tcMar)
-    doc.add_paragraph()
-
-add_color_bar(doc, "1A1A2E", height_pt=16)
-
-# Breathing room
-for _ in range(3):
-    doc.add_paragraph()
-
-# Main title
-title = doc.add_paragraph()
-title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-title.paragraph_format.space_after = Pt(6)
-run = title.add_run("Heart Disease Risk Prediction")
-run.font.size  = Pt(32)
-run.font.bold  = True
-run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
-
-# Subtitle
-sub = doc.add_paragraph()
-sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-sub.paragraph_format.space_after = Pt(4)
-run = sub.add_run("End-to-End MLOps Pipeline")
-run.font.size  = Pt(18)
-run.font.color.rgb = RGBColor(0x58, 0xA6, 0xFF)
-
-# Tagline
-tag = doc.add_paragraph()
-tag.alignment = WD_ALIGN_PARAGRAPH.CENTER
-tag.paragraph_format.space_after = Pt(20)
-run = tag.add_run("FastAPI  ·  MLflow  ·  Docker  ·  Kubernetes  ·  Prometheus + Grafana")
-run.font.size   = Pt(11)
-run.font.italic = True
-run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
-
-# Thin divider line via border paragraph
-def add_thin_divider(doc, color="C0C0C0"):
+def add_thin_divider(doc, color="CCCCCC"):
     para = doc.add_paragraph()
     pPr = para._p.get_or_add_pPr()
     pBdr = OXE("w:pBdr")
@@ -195,67 +133,153 @@ def add_thin_divider(doc, color="C0C0C0"):
     bottom.set(QN("w:color"), color)
     pBdr.append(bottom)
     pPr.append(pBdr)
-    para.paragraph_format.space_after = Pt(16)
+    para.paragraph_format.space_after  = Pt(10)
+    para.paragraph_format.space_before = Pt(0)
 
-add_thin_divider(doc)
+def remove_table_borders(tbl):
+    tblPr = tbl._tbl.tblPr
+    tblBorders = OXE("w:tblBorders")
+    for side in ["top","left","bottom","right","insideH","insideV"]:
+        b = OXE(f"w:{side}")
+        b.set(QN("w:val"), "none")
+        b.set(QN("w:sz"), "0")
+        b.set(QN("w:space"), "0")
+        b.set(QN("w:color"), "auto")
+        tblBorders.append(b)
+    tblPr.append(tblBorders)
 
-# Details table — 2-column, no borders, clean layout
-det = doc.add_table(rows=7, cols=2)
+# ── TOP: simple text header ───────────────────────────────────────────────────
+
+doc.add_paragraph()  # small top padding
+
+# Institution line
+inst = doc.add_paragraph()
+inst.alignment = WD_ALIGN_PARAGRAPH.CENTER
+inst.paragraph_format.space_after = Pt(2)
+run = inst.add_run("BITS Pilani  ·  Machine Learning Operations (MLOps)  ·  AIMLCZG523")
+run.font.size  = Pt(10)
+run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+
+# Main title
+title = doc.add_paragraph()
+title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+title.paragraph_format.space_after = Pt(4)
+run = title.add_run("Heart Disease Risk Prediction")
+run.font.size  = Pt(30)
+run.font.bold  = True
+run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
+
+# Subtitle
+sub = doc.add_paragraph()
+sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+sub.paragraph_format.space_after = Pt(14)
+run = sub.add_run("End-to-End MLOps Pipeline  —  Assignment 01")
+run.font.size  = Pt(14)
+run.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
+add_thin_divider(doc, "DDDDDD")
+
+# ── STUDENT DETAILS — clean 2-col borderless table ───────────────────────────
+
+det = doc.add_table(rows=5, cols=2)
 det.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-# Remove all borders from the table
-from docx.oxml import OxmlElement as OE2
-tblPr = det._tbl.tblPr
-tblBorders = OE2("w:tblBorders")
-for side in ["top","left","bottom","right","insideH","insideV"]:
-    b = OE2(f"w:{side}")
-    b.set(QN("w:val"), "none")
-    b.set(QN("w:sz"), "0")
-    b.set(QN("w:space"), "0")
-    b.set(QN("w:color"), "auto")
-    tblBorders.append(b)
-tblPr.append(tblBorders)
+remove_table_borders(det)
 
 DETAIL_ROWS = [
-    ("Course",       "Machine Learning Operations (MLOps) — AIMLCZG523"),
-    ("Assignment",   "Assignment 01"),
-    ("Institution",  "BITS Pilani"),
     ("Student Name", "Swathi A"),
     ("Student ID",   "2024ADO5447"),
+    ("Assignment",   "Assignment 01  ·  Total Marks: 50"),
     ("GitHub",       REPO),
-    ("Dataset",      "UCI Heart Disease Dataset (Cleveland)"),
+    ("Dataset",      "UCI Heart Disease Dataset (Cleveland)  ·  297 patients  ·  13 features"),
 ]
 
 for i, (label, val) in enumerate(DETAIL_ROWS):
     row = det.rows[i]
-    # label cell
     lc = row.cells[0]
     lc.paragraphs[0].clear()
     lr = lc.paragraphs[0].add_run(label)
-    lr.font.bold = True
-    lr.font.size = Pt(11)
+    lr.font.bold  = True
+    lr.font.size  = Pt(10.5)
     lr.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
     lc.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    lc.paragraphs[0].paragraph_format.space_after = Pt(5)
-    # value cell
+    lc.paragraphs[0].paragraph_format.space_after = Pt(4)
     vc = row.cells[1]
     vc.paragraphs[0].clear()
     vr = vc.paragraphs[0].add_run(val)
-    vr.font.size = Pt(11)
+    vr.font.size  = Pt(10.5)
     vr.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
-    vc.paragraphs[0].paragraph_format.space_after = Pt(5)
+    vc.paragraphs[0].paragraph_format.space_after = Pt(4)
 
-# Set column widths
-from docx.shared import Inches as IN
 for row in det.rows:
-    row.cells[0].width = IN(1.8)
-    row.cells[1].width = IN(4.0)
+    row.cells[0].width = IN(1.7)
+    row.cells[1].width = IN(4.5)
 
-doc.add_paragraph()
-add_thin_divider(doc)
+add_thin_divider(doc, "DDDDDD")
 
-# Bottom accent bar
-add_color_bar(doc, "58A6FF", height_pt=8)
+# ── PIPELINE IMAGE ────────────────────────────────────────────────────────────
+
+cover_img = PLOTS / "mlops_cover.png"
+if cover_img.exists():
+    pi = doc.add_paragraph()
+    pi.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pi.paragraph_format.space_before = Pt(4)
+    pi.paragraph_format.space_after  = Pt(6)
+    pi.add_run().add_picture(str(cover_img), width=IN(6.0))
+
+# ── TECHNOLOGIES USED ─────────────────────────────────────────────────────────
+
+tech_heading = doc.add_paragraph()
+tech_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+tech_heading.paragraph_format.space_after = Pt(6)
+run = tech_heading.add_run("Technologies Used")
+run.font.size  = Pt(11)
+run.font.bold  = True
+run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x2E)
+
+tech = doc.add_table(rows=2, cols=6)
+tech.alignment = WD_TABLE_ALIGNMENT.CENTER
+remove_table_borders(tech)
+
+TECH_ITEMS = [
+    ("Python 3.11",    "Language"),
+    ("scikit-learn",   "ML"),
+    ("XGBoost",        "ML"),
+    ("MLflow",         "Tracking"),
+    ("FastAPI",        "API"),
+    ("Docker",         "Container"),
+    ("Kubernetes",     "Orchestration"),
+    ("Prometheus",     "Monitoring"),
+    ("Grafana",        "Visualisation"),
+    ("GitHub Actions", "CI/CD"),
+    ("Pytest",         "Testing"),
+    ("flake8",         "Linting"),
+]
+
+TECH_COLORS = [
+    "3776AB","F7931E","189F4B","0194E2",
+    "009688","2496ED","326CE5","E6522C",
+    "F46800","24292F","0A9EDC","5C2D91",
+]
+
+for i, (name, role) in enumerate(TECH_ITEMS):
+    row_i = i // 6
+    col_i = i % 6
+    cell = tech.rows[row_i].cells[col_i]
+    cell.paragraphs[0].clear()
+    cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cell.paragraphs[0].paragraph_format.space_after = Pt(3)
+
+    # colored name
+    nr = cell.paragraphs[0].add_run(name + "\n")
+    nr.font.bold = True
+    nr.font.size = Pt(8.5)
+    hc = TECH_COLORS[i]
+    nr.font.color.rgb = RGBColor(int(hc[0:2],16), int(hc[2:4],16), int(hc[4:6],16))
+
+    # grey role
+    rr = cell.paragraphs[0].add_run(role)
+    rr.font.size = Pt(7.5)
+    rr.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
 
 doc.add_page_break()
 
