@@ -1,12 +1,32 @@
+# k8s/service.yaml
+# ──────────────────
+# Kubernetes Service manifest — exposes the Deployment to external traffic.
+#
+# Without a Service, pods can only be reached by their internal cluster IP,
+# which changes every time a pod restarts. A Service provides a stable
+# endpoint that routes traffic to whichever pods are currently running.
+#
+# Type: LoadBalancer
+#   - On cloud providers (AWS EKS, GKE, AKS): provisions a cloud load balancer
+#   - On Docker Desktop Kubernetes: automatically maps to localhost
+#   - On Minikube: use `minikube service heart-risk-service --url`
+#
+# Apply with: kubectl apply -f k8s/
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: heart-risk-service
+  name: heart-risk-service  # stable DNS name within the cluster
+
 spec:
+  # Route traffic to all pods with this label (matches Deployment's pod template)
   selector:
     app: heart-risk-api
+
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 8000
+      port: 80          # external port clients connect to
+      targetPort: 8000  # internal port the container listens on
+
+  # LoadBalancer: externally accessible IP/hostname
   type: LoadBalancer

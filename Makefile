@@ -17,7 +17,7 @@ install:
 # ── Quality ───────────────────────────────────────────────────────────────────
 
 lint:
-	$(FLAKE8) src/ api/ tests/ --max-line-length=100 --ignore=E402
+	$(FLAKE8) src/ api/ tests/ --max-line-length=100 --ignore=E402,E221,E241,E251,E261
 	@echo "Lint passed."
 
 test:

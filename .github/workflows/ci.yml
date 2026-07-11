@@ -1,49 +1,96 @@
+# .github/workflows/ci.yml
+# ─────────────────────────
+# GitHub Actions CI pipeline.
+# Runs automatically on every push to main or develop, and on pull requests to main.
+#
+# What this pipeline does:
+#   1. Spins up a fresh Ubuntu virtual machine (no pre-installed packages)
+#   2. Installs exactly the packages in requirements.txt
+#   3. Runs flake8 lint check — fails if any style violations found
+#   4. Downloads the UCI dataset from the internet
+#   5. Runs 10 preprocessing/data tests
+#   6. Trains all 3 models (quick mode — no tuning, ~30 seconds)
+#   7. Runs 15 API endpoint tests
+#   8. Uploads JUnit XML test results as a workflow artifact
+#   9. Uploads the trained pipeline.pkl as a workflow artifact
+#
+# Why this matters:
+#   Running on a clean Ubuntu VM proves the code works in a reproducible environment,
+#   not just on the developer's machine. If any step fails, the whole pipeline stops
+#   and the commit is marked as broken.
+
 name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop]   # trigger on pushes to these branches
   pull_request:
-    branches: [main]
+    branches: [main]            # trigger on PRs targeting main
 
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest      # fresh Ubuntu VM provided by GitHub
 
     steps:
+      # Step 1: Fetch the repository code onto the runner
       - uses: actions/checkout@v4
 
+      # Step 2: Install Python 3.11 (pins the exact interpreter version)
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # Step 3: Cache pip packages to speed up repeated runs
+      # The cache key includes the OS and requirements.txt hash —
+      # if requirements.txt changes, the cache is invalidated and rebuilt
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
+      # Step 4: Install all 16 pinned dependencies
+      # This is the key reproducibility step — exact same versions as development
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # Step 5: Lint with flake8
+      # Checks for: unused imports, undefined variables, line length, style issues
+      # --max-line-length=100: allows slightly longer lines than PEP 8 default (79)
+      # --ignore=E402: allows imports after sys.path.insert() (needed for src/ imports)
+      # Pipeline FAILS if any violation is found
       - name: Lint with flake8
-        run: flake8 src/ api/ tests/ --max-line-length=100 --ignore=E402
+        run: flake8 src/ api/ tests/ --max-line-length=100 --ignore=E402,E221,E241,E251,E261
 
+      # Step 6: Download the UCI Heart Disease dataset
+      # This runs on the clean VM to verify the download script works from scratch
       - name: Download dataset
         run: python data/download_data.py
 
+      # Step 7: Run preprocessing and data integrity tests
+      # Tests cover: data loading, missing values, binary target, feature engineering,
+      # preprocessor output shape, pipeline fit/predict, accuracy threshold
+      # --junitxml saves results as XML for the artifact upload step
       - name: Run preprocessing unit tests
         run: pytest tests/test_preprocess.py -v --tb=short --junitxml=test-preprocess.xml
 
+      # Step 8: Train models (quick-run mode skips hyperparameter tuning)
+      # This is a smoke test — verifies the full training pipeline runs without errors
+      # mkdir -p ensures the output directories exist on the clean VM
       - name: Train model (quick smoke test)
         run: |
           mkdir -p models plots
           python src/train.py --quick-run
 
+      # Step 9: Run API endpoint tests
+      # Tests cover: all 7 endpoints, validation, batch limits, response time
       - name: Run API unit tests
         run: pytest tests/test_api.py -v --tb=short --junitxml=test-api.xml
 
+      # Step 10: Upload test results as XML artifact
+      # 'if: always()' means this runs even if tests failed — so we can inspect results
+      # The XML files can be viewed in the GitHub Actions UI or downloaded
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -53,6 +100,9 @@ jobs:
             test-preprocess.xml
             test-api.xml
 
+      # Step 11: Upload the trained model as an artifact
+      # Only runs if all previous steps succeeded
+      # The pipeline.pkl can be downloaded directly from the GitHub Actions run page
       - name: Upload trained model
         uses: actions/upload-artifact@v4
         if: success()

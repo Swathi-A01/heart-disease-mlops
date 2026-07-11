@@ -1,41 +1,79 @@
+# k8s/deployment.yaml
+# ─────────────────────
+# Kubernetes Deployment manifest for the Heart Disease Risk API.
+#
+# A Deployment tells Kubernetes:
+#   - Which container image to run
+#   - How many replicas (copies) to keep running
+#   - What resources each pod is allowed to use
+#   - How to check if a pod is healthy
+#
+# Apply with: kubectl apply -f k8s/
+# Check status: kubectl get pods
+# View logs: kubectl logs deployment/heart-risk-deployment
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: heart-risk-deployment
   labels:
-    app: heart-risk-api
+    app: heart-risk-api  # label used by the Service to route traffic to these pods
+
 spec:
+  # Run 2 copies of the pod — if one crashes, the other keeps serving traffic.
+  # This is the minimum for high availability in production.
   replicas: 2
+
+  # The selector must match the pod template labels below.
+  # Kubernetes uses this to know which pods this Deployment manages.
   selector:
     matchLabels:
       app: heart-risk-api
+
   template:
     metadata:
       labels:
-        app: heart-risk-api
+        app: heart-risk-api  # must match selector.matchLabels above
+
     spec:
       containers:
         - name: heart-risk-api
-          image: heart-risk-api:latest
+          image: heart-risk-api:latest  # Docker image name (built locally)
+
+          # IfNotPresent: use the local Docker image, don't try to pull from Docker Hub.
+          # Required for local development with Minikube or Docker Desktop Kubernetes.
           imagePullPolicy: IfNotPresent
+
           ports:
-            - containerPort: 8000
+            - containerPort: 8000  # the port the FastAPI app listens on
+
+          # Resource requests and limits
+          # requests: guaranteed minimum resources Kubernetes will allocate
+          # limits: hard cap — container is killed/restarted if exceeded
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "256Mi"  # guaranteed 256MB RAM
+              cpu: "250m"      # guaranteed 0.25 CPU cores (250 millicores)
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "512Mi"  # max 512MB RAM before OOM kill
+              cpu: "500m"      # max 0.5 CPU cores
+
+          # Readiness probe: Kubernetes waits until this passes before routing traffic.
+          # Prevents the pod from receiving requests before the model is loaded.
+          # GET /ready returns {"ready": true} once pipeline.pkl is loaded.
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready   # our custom readiness endpoint
               port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 5   # wait 5s after container starts before first check
+            periodSeconds: 5         # check every 5 seconds
+
+          # Liveness probe: Kubernetes restarts the pod if this fails.
+          # Catches cases where the app is running but stuck (e.g. deadlock).
+          # GET /health returns {"status": "ok"} while the app is alive.
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health  # simple liveness endpoint
               port: 8000
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 15  # give the container 15s to fully start
+            periodSeconds: 10        # check every 10 seconds
