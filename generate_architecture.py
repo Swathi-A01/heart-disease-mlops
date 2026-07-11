@@ -1,319 +1,246 @@
 """
-Generate a professional system architecture diagram — Figma/LucidChart style.
-Dark theme, color-coded layers, clean typography, styled arrows.
-Saves to plots/architecture_diagram.png
+Clean professional architecture diagram — white background, Lucidchart style.
+Fixed spacing, no overlaps.
+Saves to screenshots/architecture_clean.png
 """
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, Circle, FancyArrowPatch
+from matplotlib.patches import FancyBboxPatch
 from pathlib import Path
 
-OUT = Path("plots/architecture_diagram.png")
+OUT = Path("screenshots/architecture_clean.png")
+
+fig, ax = plt.subplots(figsize=(22, 16))
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
+ax.set_xlim(0, 22)
+ax.set_ylim(0, 16)
+ax.axis("off")
 
 # ── colour palette ────────────────────────────────────────────────────────────
-BG       = "#0D1117"
-C_DATA   = "#58A6FF"   # blue
-C_FEAT   = "#BC8CFF"   # purple
-C_TRAIN  = "#3FB950"   # green
-C_API    = "#F78166"   # coral / orange
-C_DOCKER = "#56D364"   # bright green
-C_K8S    = "#388BFD"   # sky blue
-C_MON    = "#FF7B72"   # red-coral
-C_CI     = "#D29922"   # amber/gold
-C_TEXT   = "#E6EDF3"
-C_MUTED  = "#8B949E"
-FONT     = "Avenir"
-
-fig, ax = plt.subplots(figsize=(22, 15))
-fig.patch.set_facecolor(BG)
-ax.set_facecolor(BG)
-ax.set_xlim(0, 22)
-ax.set_ylim(0, 15)
-ax.axis("off")
+COLORS = {
+    "data":    ("#DBEAFE", "#1D4ED8"),
+    "feat":    ("#EDE9FE", "#6D28D9"),
+    "train":   ("#DCFCE7", "#15803D"),
+    "mlflow":  ("#FEF9C3", "#A16207"),
+    "api":     ("#FFE4E6", "#BE123C"),
+    "docker":  ("#CCFBF1", "#0F766E"),
+    "k8s":     ("#DBEAFE", "#1E40AF"),
+    "render":  ("#DCFCE7", "#166534"),
+    "ci":      ("#FEF3C7", "#B45309"),
+    "monitor": ("#FCE7F3", "#9D174D"),
+}
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def card(x, y, w, h, color, alpha_fill=0.10):
-    """Rounded card with glowing border."""
-    # glow
-    glow = FancyBboxPatch((x-0.05, y-0.05), w+0.1, h+0.1,
-        boxstyle="round,pad=0,rounding_size=0.3",
-        linewidth=4, edgecolor=color, facecolor="none", alpha=0.15, zorder=2)
-    ax.add_patch(glow)
-    # fill
-    fill = FancyBboxPatch((x, y), w, h,
-        boxstyle="round,pad=0,rounding_size=0.25",
-        linewidth=0, facecolor=color, alpha=alpha_fill, zorder=3)
-    ax.add_patch(fill)
-    # border
-    border = FancyBboxPatch((x, y), w, h,
-        boxstyle="round,pad=0,rounding_size=0.25",
-        linewidth=1.2, edgecolor=color, facecolor="none", alpha=0.8, zorder=4)
-    ax.add_patch(border)
+def box(x, y, w, h, key, title, lines=None, radius=0.2):
+    fill, border = COLORS[key]
+    p = FancyBboxPatch((x, y), w, h,
+        boxstyle=f"round,pad=0,rounding_size={radius}",
+        linewidth=2, edgecolor=border, facecolor=fill, zorder=3)
+    ax.add_patch(p)
+    # title bar
+    bar = FancyBboxPatch((x, y+h-0.52), w, 0.52,
+        boxstyle=f"round,pad=0,rounding_size={radius}",
+        linewidth=0, facecolor=border, alpha=0.85, zorder=4)
+    ax.add_patch(bar)
+    ax.text(x + w/2, y + h - 0.26, title,
+        fontsize=9, fontweight="bold", ha="center", va="center",
+        color="white", zorder=5)
+    if lines:
+        total = len(lines)
+        for i, line in enumerate(lines):
+            ly = y + h - 0.52 - 0.38 * (i + 1)
+            ax.text(x + w/2, ly, line,
+                fontsize=7.8, ha="center", va="center",
+                color="#1a1a1a", zorder=5)
 
-
-def header(x, y, w, text, color):
-    """Section header bar."""
-    h_fill = FancyBboxPatch((x, y), w, 0.5,
-        boxstyle="round,pad=0,rounding_size=0.2",
-        linewidth=0, facecolor=color, alpha=0.9, zorder=4)
-    ax.add_patch(h_fill)
-    ax.text(x + w/2, y + 0.25, text, fontsize=10, color="white",
-            ha="center", va="center", fontweight="bold",
-            fontfamily=FONT, zorder=5)
-
-
-def chip(x, y, w, h, color, text_top, text_bot="", alpha=0.22):
-    """Small chip/pill inside a section."""
-    fill = FancyBboxPatch((x, y), w, h,
-        boxstyle="round,pad=0,rounding_size=0.15",
-        linewidth=1, edgecolor=color, facecolor=color, alpha=alpha, zorder=5)
-    ax.add_patch(fill)
-    mid = y + h / 2
-    if text_bot:
-        ax.text(x + w/2, mid + 0.13, text_top, fontsize=7.5, color=C_TEXT,
-                ha="center", va="center", fontweight="bold",
-                fontfamily=FONT, zorder=6)
-        ax.text(x + w/2, mid - 0.15, text_bot, fontsize=6.5, color=C_MUTED,
-                ha="center", va="center", fontfamily=FONT, zorder=6)
-    else:
-        ax.text(x + w/2, mid, text_top, fontsize=7.5, color=C_TEXT,
-                ha="center", va="center", fontweight="bold",
-                fontfamily=FONT, zorder=6)
-
-
-def txt(x, y, s, size=8.5, color=C_TEXT, bold=False, ha="center", va="center"):
-    ax.text(x, y, s, fontsize=size, color=color, ha=ha, va=va,
-            fontweight="bold" if bold else "normal",
-            fontfamily=FONT, zorder=6)
-
-
-def dot_arrow(x1, y1, x2, y2, color, lw=2.0, rad=0.0, label=""):
-    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
-        arrowprops=dict(
-            arrowstyle="-|>",
-            color=color, lw=lw,
-            connectionstyle=f"arc3,rad={rad}",
-            mutation_scale=14,
-        ), zorder=4)
-    if label:
-        mx, my = (x1+x2)/2, (y1+y2)/2
-        ax.text(mx+0.15, my, label, fontsize=6.5, color=color, style="italic",
-                ha="left", va="center", fontfamily=FONT, zorder=7)
-
-
-def badge(x, y, text, color):
-    """Small colored badge for method labels."""
-    w = len(text) * 0.085 + 0.15
-    fill = FancyBboxPatch((x, y-0.12), w, 0.25,
+def chip(x, y, text, key, size=7.2):
+    fill, border = COLORS[key]
+    w = len(text) * 0.087 + 0.22
+    p = FancyBboxPatch((x - w/2, y - 0.14), w, 0.28,
         boxstyle="round,pad=0,rounding_size=0.08",
-        linewidth=0, facecolor=color, alpha=0.85, zorder=6)
-    ax.add_patch(fill)
-    ax.text(x + w/2, y+0.005, text, fontsize=6, color="white",
-            ha="center", va="center", fontweight="bold",
-            fontfamily=FONT, zorder=7)
-    return w
+        linewidth=1.2, edgecolor=border, facecolor=fill, zorder=5)
+    ax.add_patch(p)
+    ax.text(x, y, text, fontsize=size, ha="center", va="center",
+        color=border, fontweight="bold", zorder=6)
 
+def arr(x1, y1, x2, y2, key, lbl="", rad=0.0):
+    _, color = COLORS[key]
+    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+        arrowprops=dict(arrowstyle="-|>", color=color, lw=1.8,
+        mutation_scale=13, connectionstyle=f"arc3,rad={rad}"), zorder=4)
+    if lbl:
+        mx, my = (x1+x2)/2 + 0.05, (y1+y2)/2
+        ax.text(mx, my, lbl, fontsize=6.5, color=color,
+            style="italic", ha="left", va="center", zorder=6)
 
-# ════════════════════════════════════════════════════════════════════════════════
+def stat_chip(x, y, text, key):
+    _, border = COLORS[key]
+    w = len(text) * 0.092 + 0.28
+    p = FancyBboxPatch((x, y - 0.2), w, 0.4,
+        boxstyle="round,pad=0,rounding_size=0.1",
+        linewidth=1.5, edgecolor=border, facecolor="white", zorder=4)
+    ax.add_patch(p)
+    ax.text(x + w/2, y, text, fontsize=8, ha="center", va="center",
+        color=border, fontweight="bold", zorder=5)
+    return x + w + 0.22
+
+# ═══════════════════════════════════════════════════════════════════
 # TITLE
-# ════════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
+ax.text(11, 15.65, "Heart Disease Risk Prediction — MLOps System Architecture",
+    fontsize=18, fontweight="bold", ha="center", color="#111827")
+ax.text(11, 15.2, "UCI Dataset  ·  scikit-learn + XGBoost  ·  MLflow  ·  FastAPI  ·  Docker  ·  Kubernetes  ·  Render  ·  Prometheus + Grafana  ·  GitHub Actions",
+    fontsize=9, ha="center", color="#6B7280", style="italic")
+ax.plot([0.5, 21.5], [14.9, 14.9], color="#E5E7EB", lw=1.5)
 
-ax.text(11, 14.5, "Heart Disease Risk Prediction", fontsize=22,
-        color=C_TEXT, ha="center", va="center", fontweight="bold", fontfamily=FONT)
-ax.text(11, 14.0, "End-to-End MLOps System Architecture",
-        fontsize=11, color=C_MUTED, ha="center", va="center", fontfamily=FONT)
+# ═══════════════════════════════════════════════════════════════════
+# ROW 1  — Data · Feature Eng · Training · MLflow
+# ═══════════════════════════════════════════════════════════════════
+ROW1_Y = 11.5
+BOX_H  = 2.9
 
-# thin divider line
-ax.plot([1, 21], [13.7, 13.7], color="#30363D", lw=1, zorder=2)
+box(0.4,  ROW1_Y, 3.8, BOX_H, "data",   "DATA LAYER",
+    ["UCI Heart Disease (Cleveland)", "303 patients · 14 features", "download_data.py", "na_values='?'  ·  binarise target"])
 
-# ════════════════════════════════════════════════════════════════════════════════
-# ROW 1  ·  DATA (left)  +  CI/CD (right)
-# ════════════════════════════════════════════════════════════════════════════════
+box(4.9,  ROW1_Y, 4.2, BOX_H, "feat",   "FEATURE ENGINEERING",
+    ["StandardScaler (9 numeric)", "OneHotEncoder drop='first' (6 cat)", "Passthrough (3 binary)", "5 derived: hr_reserve · bp_cat · chol_risk"])
 
-card(0.4, 11.0, 6.5, 2.5, C_DATA)
-header(0.4, 13.0, 6.5, "DATA LAYER", C_DATA)
-chip(0.65, 11.2, 1.6, 1.55, C_DATA, "UCI CSV", "303 rows · 14 cols")
-chip(2.45, 11.2, 1.9, 1.55, C_DATA, "download_data.py", "headers · NaN · binarise")
-chip(4.55, 11.2, 1.95, 1.55, C_DATA, "heart.csv", "297 rows · clean")
-dot_arrow(2.25, 11.975, 2.45, 11.975, C_DATA)
-dot_arrow(4.35, 11.975, 4.55, 11.975, C_DATA)
+box(9.8,  ROW1_Y, 4.3, BOX_H, "train",  "MODEL TRAINING",
+    ["Logistic Regression  (GridSearchCV)", "Random Forest  (RandomizedSearchCV)", "XGBoost  (RandomizedSearchCV)", "StratifiedKFold 5-fold · scoring=roc_auc"])
 
-card(14.8, 11.0, 6.8, 2.5, C_CI)
-header(14.8, 13.0, 6.8, "CI/CD  —  GitHub Actions", C_CI)
-ci_steps = [("flake8", "lint"), ("pytest", "24 tests"), ("train.py", "--quick-run"), ("artifacts", "upload")]
-for i, (a, b) in enumerate(ci_steps):
-    xi = 15.1 + i * 1.6
-    chip(xi, 11.2, 1.35, 1.55, C_CI, a, b)
-    if i < 3:
-        dot_arrow(xi + 1.35, 11.975, xi + 1.6, 11.975, C_CI)
-txt(18.2, 11.1, "push > auto-trigger > fail on errors", size=7.5, color=C_MUTED)
+box(14.8, ROW1_Y, 4.2, BOX_H, "mlflow", "MLFLOW TRACKING",
+    ["params: model · hyperparameters", "metrics: roc_auc · cv_roc_auc · f1", "artifacts: CM · ROC · PR · calibration", "sqlite:///mlflow.db  ·  localhost:5000"])
 
-# ════════════════════════════════════════════════════════════════════════════════
-# ROW 2  ·  FEATURE ENG  +  TRAINING  +  MLFLOW
-# ════════════════════════════════════════════════════════════════════════════════
+# Row 1 horizontal arrows
+arr(4.2,  ROW1_Y + 1.45, 4.9,  ROW1_Y + 1.45, "data")
+arr(9.1,  ROW1_Y + 1.45, 9.8,  ROW1_Y + 1.45, "feat")
+arr(14.1, ROW1_Y + 1.45, 14.8, ROW1_Y + 1.45, "train", "log all runs")
 
-card(0.4, 8.3, 6.5, 2.45, C_FEAT)
-header(0.4, 10.3, 6.5, "FEATURE ENGINEERING  (preprocess.py)", C_FEAT)
-fe_items = [
-    ("StandardScaler", "6 numeric"),
-    ("OneHotEncoder", "6 categorical"),
-    ("Passthrough", "3 binary"),
-    ("Derived", "hr_reserve\nbp_category\nchol_risk"),
+# Best model arrow downward
+ax.text(11.95, ROW1_Y - 0.22, "★  Best model  →  models/pipeline.pkl",
+    fontsize=8, ha="center", color="#15803D", fontweight="bold",
+    bbox=dict(boxstyle="round,pad=0.25", facecolor="#DCFCE7",
+              edgecolor="#15803D", linewidth=1))
+arr(11.95, ROW1_Y, 11.95, ROW1_Y - 0.18, "train")
+
+# ═══════════════════════════════════════════════════════════════════
+# ROW 2  — FastAPI · Docker · Kubernetes · Render
+# ═══════════════════════════════════════════════════════════════════
+ROW2_Y = 7.8
+
+box(0.4,  ROW2_Y, 4.8, BOX_H, "api",    "FASTAPI  (api/main.py)",
+    ["POST /predict  — single patient", "POST /predict-batch  — up to 100", "GET /health · /ready · /model-info", "GET /stats · /metrics (Prometheus)"])
+
+box(5.9,  ROW2_Y, 4.0, BOX_H, "docker", "DOCKER",
+    ["FROM python:3.11-slim", "RUN download_data.py + train.py", "HEALTHCHECK GET /health", "CMD uvicorn api.main:app :8000"])
+
+box(10.6, ROW2_Y, 4.2, BOX_H, "k8s",   "KUBERNETES  (Docker Desktop)",
+    ["Deployment: 2 replicas", "Readiness probe: GET /ready", "Liveness probe: GET /health", "Service: LoadBalancer  port 80→8000"])
+
+box(15.5, ROW2_Y, 4.2, BOX_H, "render","RENDER CLOUD",
+    ["Dockerfile.render  (lightweight)", "Auto-deploy on git push to main", "HTTPS · Singapore region · Free tier",
+     "heart-disease-mlops-rcg4.onrender.com"])
+
+# Row 2 arrows
+arr(5.2,  ROW2_Y + 1.45, 5.9,  ROW2_Y + 1.45, "api",    "containerise")
+arr(9.9,  ROW2_Y + 1.45, 10.6, ROW2_Y + 1.45, "docker", "deploy")
+arr(14.8, ROW2_Y + 1.45, 15.5, ROW2_Y + 1.45, "k8s",    "cloud")
+
+# pipeline.pkl → FastAPI
+arr(11.95, ROW1_Y - 0.38, 2.8, ROW2_Y + BOX_H,
+    "train", "pipeline.pkl", rad=-0.25)
+
+# ═══════════════════════════════════════════════════════════════════
+# ROW 3  — CI/CD  |  Monitoring
+# ═══════════════════════════════════════════════════════════════════
+ROW3_Y = 4.2
+
+box(0.4, ROW3_Y, 10.0, 3.0, "ci",
+    "CI/CD  —  GitHub Actions  (.github/workflows/ci.yml)",
+    ["push to main  →  ubuntu-latest VM  →  fail fast on errors"])
+
+# CI step boxes
+ci_steps = ["flake8\nlint", "download\ndataset", "pytest\n10 tests", "train\n--quick-run", "pytest API\n15 tests", "upload\nartifacts"]
+for i, s in enumerate(ci_steps):
+    bx = 0.7 + i * 1.6
+    inner = FancyBboxPatch((bx, ROW3_Y + 0.4), 1.35, 1.85,
+        boxstyle="round,pad=0,rounding_size=0.12",
+        linewidth=1.2, edgecolor="#B45309", facecolor="#FFFBEB", zorder=4)
+    ax.add_patch(inner)
+    ax.text(bx + 0.675, ROW3_Y + 1.325, s, fontsize=8, ha="center",
+        va="center", color="#92400E", fontweight="bold", zorder=5)
+    if i < len(ci_steps) - 1:
+        arr(bx + 1.35, ROW3_Y + 1.325, bx + 1.6, ROW3_Y + 1.325, "ci")
+
+box(11.1, ROW3_Y, 10.5, 3.0, "monitor",
+    "MONITORING  —  Prometheus  +  Grafana  (docker-compose)",
+    ["API exposes /metrics  ·  scrape every 15s  ·  13-panel Grafana dashboard"])
+
+mon = [
+    ("Prometheus\n:9090", "scrapes\n/metrics"),
+    ("Grafana\n:3000", "13 panels\ndashboard"),
+    ("Counter\npredictions", "high/low\nrisk split"),
+    ("Histogram\nlatency", "p50·p95·p99\nper call"),
+    ("Structured\nLogs", "age·cp·prob\nper request"),
 ]
-for i, (a, b) in enumerate(fe_items):
-    xi = 0.65 + i * 1.55
-    chip(xi, 8.5, 1.3, 1.6, C_FEAT, a, b)
-txt(3.65, 8.4, "ColumnTransformer · fitted on train set only · no leakage", size=7.5, color=C_MUTED)
+for i, (top, bot) in enumerate(mon):
+    bx = 11.4 + i * 2.0
+    inner = FancyBboxPatch((bx, ROW3_Y + 0.4), 1.75, 1.85,
+        boxstyle="round,pad=0,rounding_size=0.12",
+        linewidth=1.2, edgecolor="#9D174D", facecolor="#FDF2F8", zorder=4)
+    ax.add_patch(inner)
+    ax.text(bx + 0.875, ROW3_Y + 1.55, top, fontsize=8, ha="center",
+        va="center", color="#9D174D", fontweight="bold", zorder=5)
+    ax.text(bx + 0.875, ROW3_Y + 0.82, bot, fontsize=7, ha="center",
+        va="center", color="#6B7280", zorder=5)
 
-card(7.2, 8.3, 5.2, 2.45, C_TRAIN)
-header(7.2, 10.3, 5.2, "MODEL TRAINING  (train.py)", C_TRAIN)
-models = [("LogisticReg", "GridSearchCV\nC=[0.01..100]"),
-          ("Random\nForest", "RandomizedCV\n10 iterations"),
-          ("XGBoost", "RandomizedCV\n8 iterations")]
-for i, (a, b) in enumerate(models):
-    xi = 7.45 + i * 1.6
-    chip(xi, 8.5, 1.4, 1.6, C_TRAIN, a, b)
-txt(9.8, 8.4, "StratifiedKFold · ROC-AUC · best model > pipeline.pkl", size=7.5, color=C_MUTED)
+# API → monitoring arrow
+arr(2.8, ROW2_Y, 2.8, ROW3_Y + 3.0, "monitor", "/metrics", rad=0)
 
-card(12.7, 8.3, 5.0, 2.45, C_TRAIN, alpha_fill=0.07)
-header(12.7, 10.3, 5.0, "MLFLOW TRACKING", C_TRAIN)
-ml_items = [("params", "C, n_estimators\nmax_depth"), ("metrics", "roc_auc\ncv_roc_auc·f1"),
-            ("artifacts", "ROC·CM\nPR·calib·pkl")]
-for i, (a, b) in enumerate(ml_items):
-    xi = 12.95 + i * 1.55
-    chip(xi, 8.5, 1.35, 1.6, C_TRAIN, a, b)
-txt(15.2, 8.4, "sqlite:///mlflow.db · 3 experiments logged", size=7.5, color=C_MUTED)
+# ═══════════════════════════════════════════════════════════════════
+# BOTTOM BAR
+# ═══════════════════════════════════════════════════════════════════
+ax.plot([0.5, 21.5], [3.9, 3.9], color="#E5E7EB", lw=1.5)
 
-# ════════════════════════════════════════════════════════════════════════════════
-# ROW 3  ·  FASTAPI  +  DOCKER
-# ════════════════════════════════════════════════════════════════════════════════
+ax.text(1.6, 3.5, "GitHub Repository",
+    fontsize=9, fontweight="bold", color="#111827", ha="center")
+ax.text(1.6, 3.15, "github.com/Swathi-A01/\nheart-disease-mlops",
+    fontsize=8, color="#1D4ED8", ha="center")
 
-card(0.4, 5.5, 7.8, 2.5, C_API)
-header(0.4, 7.5, 7.8, "FASTAPI  (api/main.py)  —  uvicorn port 8000", C_API)
-
-endpoints = [
-    ("POST", "/predict", "heart_rate_reserve\n+ age_thalach_ratio"),
-    ("POST", "/predict-batch", "up to 100 patients\naggregate summary"),
-    ("GET",  "/model-info",    "model type\n+ feature list"),
-    ("GET",  "/stats",         "live prediction\ncounters"),
-    ("GET",  "/health",        "liveness\ncheck"),
-    ("GET",  "/metrics",       "Prometheus\ncounters"),
+# stat chips
+chips = [
+    ("297 patients",        "data"),
+    ("18 features total",   "feat"),
+    ("3 models trained",    "train"),
+    ("ROC-AUC  0.9464",     "train"),
+    ("25 pytest tests",     "api"),
+    ("11 CI steps",         "ci"),
+    ("2 K8s replicas",      "k8s"),
+    ("13 Grafana panels",   "monitor"),
 ]
-get_col = "#3FB950"; post_col = "#F78166"
-for i, (method, ep, desc) in enumerate(endpoints):
-    col_i = i % 3; row_i = i // 3
-    xb = 0.65 + col_i * 2.55
-    yb = 6.9 - row_i * 1.2
-    mc = get_col if method == "GET" else post_col
-    chip(xb, yb - 0.85, 2.25, 1.1, C_API, ep, desc, alpha=0.18)
-    bw = badge(xb + 0.06, yb - 0.1, method, mc)
+cx = 3.3
+for txt, key in chips:
+    cx = stat_chip(cx, 3.3, txt, key)
 
-txt(4.3, 5.65, "Pydantic validation · structured logging · engineer_features() at inference", size=7.5, color=C_MUTED)
+# Live URL
+url_box = FancyBboxPatch((3.5, 2.55), 15.0, 0.6,
+    boxstyle="round,pad=0,rounding_size=0.15",
+    linewidth=1.8, edgecolor="#166534", facecolor="#F0FDF4", zorder=3)
+ax.add_patch(url_box)
+ax.text(11.0, 2.85,
+    "Live API:   https://heart-disease-mlops-rcg4.onrender.com/docs",
+    fontsize=10, ha="center", va="center",
+    color="#166534", fontweight="bold", zorder=4)
 
-card(8.5, 5.5, 6.6, 2.5, C_DOCKER)
-header(8.5, 7.5, 6.6, "DOCKER  (python:3.11-slim)", C_DOCKER)
-dk_steps = [("FROM\npython:3.11", "base image"),
-            ("pip install\nrequirements", "16 deps"),
-            ("download_data\n+ train.py", "build-time"),
-            ("uvicorn\n:8000", "HEALTHCHECK")]
-for i, (a, b) in enumerate(dk_steps):
-    xi = 8.75 + i * 1.55
-    chip(xi, 5.7, 1.35, 1.6, C_DOCKER, a, b)
-    if i < 3:
-        dot_arrow(xi + 1.35, 6.5, xi + 1.55, 6.5, C_DOCKER)
-txt(11.8, 5.65, ".dockerignore · model trained at build time · no version mismatch", size=7.5, color=C_MUTED)
+# outer border
+outer = FancyBboxPatch((0.2, 2.35), 21.6, 13.2,
+    boxstyle="round,pad=0,rounding_size=0.3",
+    linewidth=2, edgecolor="#D1D5DB", facecolor="none", zorder=1)
+ax.add_patch(outer)
 
-# ════════════════════════════════════════════════════════════════════════════════
-# ROW 4  ·  KUBERNETES  +  MONITORING
-# ════════════════════════════════════════════════════════════════════════════════
-
-card(0.4, 2.8, 7.8, 2.4, C_K8S)
-header(0.4, 4.7, 7.8, "KUBERNETES  —  Docker Desktop", C_K8S)
-k8s_items = [("Deployment", "2 replicas\nimagePullPolicy\nIfNotPresent"),
-             ("Service\nLoadBalancer", "port 80\n> 8000"),
-             ("Readiness\nProbe", "/health\nevery 5s"),
-             ("Liveness\nProbe", "/health\nevery 10s"),
-             ("Resources", "256Mi / 500m\nreq · limits")]
-for i, (a, b) in enumerate(k8s_items):
-    xi = 0.65 + i * 1.5
-    chip(xi, 3.0, 1.3, 1.5, C_K8S, a, b)
-txt(4.3, 2.95, "kubectl apply -f k8s/ · 2 pods Running · curl http://localhost/predict", size=7.5, color=C_MUTED)
-
-card(8.5, 2.8, 6.6, 2.4, C_MON)
-header(8.5, 4.7, 6.6, "MONITORING  (docker-compose)", C_MON)
-mon_items = [("Prometheus\n:9090", "scrape /metrics\nevery 15s"),
-             ("Grafana\n:3000", "4-panel\ndashboard"),
-             ("Custom\nCounters", "predictions_total\nby risk_level"),
-             ("Latency\nHistogram", "per-prediction\ntiming")]
-for i, (a, b) in enumerate(mon_items):
-    xi = 8.75 + i * 1.55
-    chip(xi, 3.0, 1.35, 1.5, C_MON, a, b)
-txt(11.8, 2.95, "Prometheus > Grafana · structured logs · /stats endpoint", size=7.5, color=C_MUTED)
-
-# ════════════════════════════════════════════════════════════════════════════════
-# BOTTOM  ·  REPO
-# ════════════════════════════════════════════════════════════════════════════════
-
-card(2.5, 0.4, 10.5, 2.1, C_DATA, alpha_fill=0.07)
-header(2.5, 2.0, 10.5, "github.com/Swathi-A01/heart-disease-mlops", C_DATA)
-repo_items = ["data/", "src/", "api/", "tests/\n24 tests", "k8s/", "monitoring/", ".github/\nworkflows"]
-for i, ri in enumerate(repo_items):
-    xi = 2.75 + i * 1.45
-    chip(xi, 0.6, 1.25, 1.2, C_DATA, ri, alpha=0.2)
-
-# ════════════════════════════════════════════════════════════════════════════════
-# ARROWS — between rows
-# ════════════════════════════════════════════════════════════════════════════════
-
-# Data > FE
-dot_arrow(3.65, 11.0, 3.65, 10.78, C_DATA, lw=2)
-
-# FE > Training
-dot_arrow(6.9, 9.52, 7.2, 9.52, C_FEAT, lw=2)
-
-# Training > MLflow
-dot_arrow(12.4, 9.52, 12.7, 9.52, C_TRAIN, lw=2)
-
-# Training > FastAPI (pipeline.pkl)
-dot_arrow(9.8, 8.3, 4.0, 8.02, C_TRAIN, lw=2, rad=-0.2, label="pipeline.pkl")
-
-# FastAPI > Docker
-dot_arrow(8.2, 6.75, 8.5, 6.75, C_API, lw=2)
-
-# Docker > K8s
-dot_arrow(11.8, 5.5, 5.5, 5.22, C_DOCKER, lw=2, rad=0.15, label="docker image")
-
-# K8s > Monitoring (/metrics)
-dot_arrow(8.2, 3.8, 8.5, 3.8, C_K8S, lw=2, label="/metrics")
-
-# CI/CD downward
-dot_arrow(18.2, 11.0, 18.2, 9.8, C_CI, lw=2, label="push trigger")
-
-# Repo ↑
-dot_arrow(7.75, 2.5, 7.75, 2.8, C_DATA, lw=1.5)
-
-# ════════════════════════════════════════════════════════════════════════════════
-# LEGEND
-# ════════════════════════════════════════════════════════════════════════════════
-
-legend_items = [(C_DATA,"Data"), (C_FEAT,"Feature Eng."), (C_TRAIN,"Training / MLflow"),
-                (C_API,"FastAPI"), (C_DOCKER,"Docker"), (C_K8S,"Kubernetes"),
-                (C_MON,"Monitoring"), (C_CI,"CI/CD")]
-
-lx, ly = 15.5, 4.6
-txt(17.0, ly + 0.3, "LEGEND", size=8, color=C_MUTED, bold=True)
-for i, (col, name) in enumerate(legend_items):
-    xi = lx + (i % 4) * 1.65
-    yi = ly - 0.45 - (i // 4) * 0.5
-    c = Circle((xi + 0.1, yi + 0.1), 0.09, color=col, zorder=6)
-    ax.add_patch(c)
-    ax.text(xi + 0.25, yi + 0.1, name, fontsize=7.5, color=C_TEXT,
-            va="center", fontfamily=FONT, zorder=6)
-
-# ════════════════════════════════════════════════════════════════════════════════
-
-plt.tight_layout(pad=0.1)
-plt.savefig(OUT, dpi=180, bbox_inches="tight", facecolor=BG, edgecolor="none")
+plt.tight_layout(pad=0.2)
+plt.savefig(OUT, dpi=180, bbox_inches="tight",
+    facecolor="white", edgecolor="none")
 plt.close()
 print(f"Saved: {OUT}  ({OUT.stat().st_size // 1024} KB)")
